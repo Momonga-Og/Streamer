@@ -13,7 +13,8 @@ class MyBot(commands.Bot):
         self.voice_client = None
 
     async def setup_hook(self):
-        pass  # No need for a setup hook in this case
+        # Synchronize the application commands with the Discord API
+        await bot.tree.sync()
 
 # Intents
 intents = discord.Intents.default()
@@ -29,7 +30,7 @@ async def on_ready():
 
 @bot.tree.command(name='join', description='Join a voice channel')
 async def join_channel(interaction: discord.Interaction):
-    channel = interaction.author.voice.channel
+    channel = interaction.user.voice.channel
     bot.voice_client = await channel.connect()
     await interaction.response.send_message("Joined the voice channel.")
 
