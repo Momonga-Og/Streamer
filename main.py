@@ -10,11 +10,10 @@ DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 # URL of the Al Jazeera live stream
 LIVE_STREAM_URL = 'https://www.youtube.com/live/mJdhDuweBHM?si=c_5TTVceID7Raq2i'
 
-# Define a custom Bot class that extends commands.Bot and includes the app commands
+# Define a custom Bot class that extends commands.Bot
 class MyBot(commands.Bot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.tree = app_commands.CommandTree(self)
 
     async def setup_hook(self):
         await self.tree.sync()
