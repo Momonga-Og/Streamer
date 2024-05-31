@@ -9,10 +9,10 @@ from discord import Embed
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
 # Load configuration and sentences
-with open('../../resources/config.json') as f:
+with open('config.json') as f:
     settings = json.load(f)
 
-with open('../../resources/language.json') as f:
+with open('language.json') as f:
     sentences = json.load(f)
 
 # Constants
