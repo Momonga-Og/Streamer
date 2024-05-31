@@ -3,8 +3,11 @@ import json
 import requests
 from bs4 import BeautifulSoup
 from discord.ext import commands
-from discord import Embed
+from discord import Intents, Embed
+from discord import app_commands
 
+# Ensure that the 'discord' module is imported
+import discord
 
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
@@ -29,7 +32,7 @@ SUPERTYPES = {
 }
 
 # Initialize the bot
-intents = discord.Intents.default()
+intents = Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix='!', intents=intents)
 
@@ -53,7 +56,7 @@ def create_error_embed(lang, url, error_code):
     embed.add_field(name="Error Code", value=error_code)
     return embed
 
-def get_json(scope: str) -> Dict[str, Any]:
+def get_json(scope: str) -> dict:
     response = requests.post(
         f"https://proxyconnection.touch.dofus.com/data/map?lang=fr&v={VERSION}",
         json={"class": scope},
@@ -69,7 +72,7 @@ def get_json(scope: str) -> Dict[str, Any]:
     )
     return response.json()
 
-def parse_data(date: str, items: List[Dict[str, Any]], body: str) -> Dict[str, Any]:
+def parse_data(date: str, items: list, body: str) -> dict:
     root = BeautifulSoup(body, 'html.parser')
     event = root.select_one('#almanax_event_image')
     content = root.select('.mid')[2].contents
@@ -77,8 +80,8 @@ def parse_data(date: str, items: List[Dict[str, Any]], body: str) -> Dict[str, A
     description = root.select_one('#almanax_boss_desc').contents
     zodiac = root.select_one('.zodiac_more').contents
     offering = root.select('.more-infos-content')[1].contents
-    name = ' '.join(offering.map(lambda elem: elem.get_text()).join(' ').replace('\s+', ' ').strip().split(' ')[2:-6])
-    quantity = int(''.join(offering.map(lambda elem: elem.get_text()).replace('\s+', ' ').strip().split(' ')[1]))
+    name = ' '.join([elem.get_text() for elem in offering]).replace('\s+', ' ').strip().split(' ')[2:-6]
+    quantity = int(''.join([elem.get_text() for elem in offering]).replace('\s+', ' ').strip().split(' ')[1])
     item = next((item for item in items if item['name'] == name), None)
     category = item['type'] if item else 9
 
@@ -179,7 +182,7 @@ async def get_almanax(ctx, date: str):
         await ctx.send(f"No data found for {date}")
 
 # Get all almanax's page for each date
-def get_almanaxs(items: List[Dict[str, Any]]) -> Dict[str, Any]:
+def get_almanaxs(items: list) -> dict:
     result = {}
     print("Fetching data...")
 
