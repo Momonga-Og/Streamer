@@ -1,4 +1,5 @@
 import discord
+from discord.ext import commands
 from discord import app_commands
 import requests
 from bs4 import BeautifulSoup
@@ -17,12 +18,11 @@ servers = {
 }
 
 intents = discord.Intents.default()
-bot = discord.Client(intents=intents)
-tree = app_commands.CommandTree(bot)
+bot = commands.Bot(command_prefix='!', intents=intents)
 
 @bot.event
 async def on_ready():
-    await tree.sync()
+    await bot.tree.sync()
     print(f'Bot is ready. Logged in as {bot.user}')
 
 def fetch_character_info(name, server, level_min, level_max):
@@ -75,4 +75,4 @@ async def search(interaction: discord.Interaction, name: str, server: str, level
         )
         await interaction.response.send_message(embed=embed)
 
-bot.run(DISCORD_BOT_TOKEN)
+bot.run(TOKEN)
