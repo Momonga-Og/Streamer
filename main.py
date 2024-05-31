@@ -6,7 +6,6 @@ from discord.ext import commands
 from discord import Intents, Embed
 from discord import app_commands
 
-# Ensure that the 'discord' module is imported
 import discord
 
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
@@ -36,6 +35,8 @@ intents = Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix='!', intents=intents)
 
+tree = app_commands.CommandTree(bot)
+
 # Utility functions
 def create_player_embed(data, lang):
     embed = Embed(title=data["name"], description=data.get("presentation", ""))
@@ -47,7 +48,6 @@ def create_player_embed(data, lang):
         embed.add_field(name="Guild", value=f"[{data['guild_name']}]({data['guild_link']})", inline=True)
     if data.get("alliance_name"):
         embed.add_field(name="Alliance", value=f"[{data['alliance_name']}]({data['alliance_link']})", inline=True)
-    # Add more fields as necessary
     return embed
 
 def create_error_embed(lang, url, error_code):
@@ -119,19 +119,19 @@ def parse_player_data(html, link, lang):
     data['level'] = main_info.find_next('div').text.strip().split()[1]
     data['race'] = main_info.contents[1].previous_element.strip()
     data['server'] = soup.find('span', class_='ak-directories-server-name').next_element.strip()
-    # Parse additional data as needed
     data['link'] = link
     return data
 
 @bot.event
 async def on_ready():
+    await bot.tree.sync()
     print(f'We have logged in as {bot.user}')
 
-@bot.tree.command(name="whois")
+@tree.command(name="whois")
 async def whois(interaction: discord.Interaction, pseudo: str, level: int = None, server: int = None):
     await interaction.response.defer()
     pseudo = pseudo.lower()
-    config = {'lang': 'en'}  # Replace with actual config as needed
+    config = {'lang': 'en'}
     base_url = f"{settings['encyclopedia']['base_url']}/{settings['encyclopedia']['player_url'][config['lang']]}"
     try:
         link = get_player_page(base_url, pseudo, server, level)
@@ -148,7 +148,7 @@ async def whois(interaction: discord.Interaction, pseudo: str, level: int = None
         await interaction.followup.send(embed=create_error_embed(config['lang'], base_url, 500))
         print(f"Error: {e}")
 
-@bot.tree.command(name="fetch_data")
+@tree.command(name="fetch_data")
 async def fetch_data(interaction: discord.Interaction):
     data = get_json("Items")
     types = get_json("ItemTypes")
@@ -164,24 +164,22 @@ async def fetch_data(interaction: discord.Interaction):
     result = get_almanaxs(items)
     json_data = json.dumps(dict(sorted(result.items())), indent=4)
     
-    # Save to file
     with open("./resources/year.json", "w", encoding="utf-8") as f:
         f.write(json_data)
     
     await interaction.followup.send("Data has been fetched and saved.")
 
-@bot.tree.command(name="get_almanax")
+@tree.command(name="get_almanax")
 async def get_almanax(interaction: discord.Interaction, date: str):
     with open("./resources/year.json", "r", encoding="utf-8") as f:
         data = json.load(f)
     
     almanax_data = data.get(date)
-    if almanax_data:
+    if (almanax_data):
         await interaction.followup.send(f"Almanax data for {date}:\n```json\n{json.dumps(almanax_data, indent=4)}```")
     else:
         await interaction.followup.send(f"No data found for {date}")
 
-# Get all almanax's page for each date
 def get_almanaxs(items: list) -> dict:
     result = {}
     print("Fetching data...")
@@ -201,5 +199,4 @@ def get_almanaxs(items: list) -> dict:
 
     return result
 
-# Run the bot
 bot.run(DISCORD_BOT_TOKEN)
