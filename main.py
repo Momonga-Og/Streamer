@@ -127,9 +127,9 @@ def parse_player_data(html, link, lang):
 async def on_ready():
     print(f'We have logged in as {bot.user}')
 
-@bot.command(name='whois')
-async def whois(ctx, pseudo: str, level: int = None, server: int = None):
-    await ctx.defer()
+@bot.tree.command(name="whois")
+async def whois(interaction: discord.Interaction, pseudo: str, level: int = None, server: int = None):
+    await interaction.response.defer()
     pseudo = pseudo.lower()
     config = {'lang': 'en'}  # Replace with actual config as needed
     base_url = f"{settings['encyclopedia']['base_url']}/{settings['encyclopedia']['player_url'][config['lang']]}"
@@ -139,17 +139,17 @@ async def whois(ctx, pseudo: str, level: int = None, server: int = None):
             response = requests.get(link)
             if response.status_code == 200:
                 data = parse_player_data(response.text, link, config['lang'])
-                await ctx.send(embed=create_player_embed(data, config['lang']))
+                await interaction.followup.send(embed=create_player_embed(data, config['lang']))
             else:
-                await ctx.send(embed=create_error_embed(config['lang'], link, response.status_code))
+                await interaction.followup.send(embed=create_error_embed(config['lang'], link, response.status_code))
         else:
-            await ctx.send(embed=create_error_embed(config['lang'], base_url, 404))
+            await interaction.followup.send(embed=create_error_embed(config['lang'], base_url, 404))
     except Exception as e:
-        await ctx.send(embed=create_error_embed(config['lang'], base_url, 500))
+        await interaction.followup.send(embed=create_error_embed(config['lang'], base_url, 500))
         print(f"Error: {e}")
 
-@bot.command(name='fetch_data')
-async def fetch_data(ctx):
+@bot.tree.command(name="fetch_data")
+async def fetch_data(interaction: discord.Interaction):
     data = get_json("Items")
     types = get_json("ItemTypes")
     items = [
@@ -168,18 +168,18 @@ async def fetch_data(ctx):
     with open("./resources/year.json", "w", encoding="utf-8") as f:
         f.write(json_data)
     
-    await ctx.send("Data has been fetched and saved.")
+    await interaction.followup.send("Data has been fetched and saved.")
 
-@bot.command(name='get_almanax')
-async def get_almanax(ctx, date: str):
+@bot.tree.command(name="get_almanax")
+async def get_almanax(interaction: discord.Interaction, date: str):
     with open("./resources/year.json", "r", encoding="utf-8") as f:
         data = json.load(f)
     
     almanax_data = data.get(date)
     if almanax_data:
-        await ctx.send(f"Almanax data for {date}:\n```json\n{json.dumps(almanax_data, indent=4)}```")
+        await interaction.followup.send(f"Almanax data for {date}:\n```json\n{json.dumps(almanax_data, indent=4)}```")
     else:
-        await ctx.send(f"No data found for {date}")
+        await interaction.followup.send(f"No data found for {date}")
 
 # Get all almanax's page for each date
 def get_almanaxs(items: list) -> dict:
