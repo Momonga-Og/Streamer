@@ -1,0 +1,14 @@
+import json
+
+# Load configuration from a file
+with open('config.json', 'r') as f:
+    config = json.load(f)
+
+# Example of accessing the configuration settings
+discord_token = config['discord']['token']
+mongo_url = config['mongo']['url']
+base_url = config['encyclopedia']['base_url']
+
+print(f"Discord Token: {discord_token}")
+print(f"MongoDB URL: {mongo_url}")
+print(f"Encyclopedia Base URL: {base_url}")
