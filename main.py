@@ -3,8 +3,7 @@ import json
 import requests
 from bs4 import BeautifulSoup
 from discord.ext import commands
-from discord import Intents, Embed
-from discord import app_commands
+from discord import Intents, Embed, app_commands
 
 import discord
 
@@ -34,8 +33,6 @@ SUPERTYPES = {
 intents = Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix='!', intents=intents)
-
-tree = app_commands.CommandTree(bot)
 
 # Utility functions
 def create_player_embed(data, lang):
@@ -127,7 +124,7 @@ async def on_ready():
     await bot.tree.sync()
     print(f'We have logged in as {bot.user}')
 
-@tree.command(name="whois")
+@bot.tree.command(name="whois")
 async def whois(interaction: discord.Interaction, pseudo: str, level: int = None, server: int = None):
     await interaction.response.defer()
     pseudo = pseudo.lower()
@@ -148,7 +145,7 @@ async def whois(interaction: discord.Interaction, pseudo: str, level: int = None
         await interaction.followup.send(embed=create_error_embed(config['lang'], base_url, 500))
         print(f"Error: {e}")
 
-@tree.command(name="fetch_data")
+@bot.tree.command(name="fetch_data")
 async def fetch_data(interaction: discord.Interaction):
     data = get_json("Items")
     types = get_json("ItemTypes")
@@ -169,7 +166,7 @@ async def fetch_data(interaction: discord.Interaction):
     
     await interaction.followup.send("Data has been fetched and saved.")
 
-@tree.command(name="get_almanax")
+@bot.tree.command(name="get_almanax")
 async def get_almanax(interaction: discord.Interaction, date: str):
     with open("./resources/year.json", "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -199,4 +196,5 @@ def get_almanaxs(items: list) -> dict:
 
     return result
 
-bot.run(DISCORD_BOT_TOKEN)
+if __name__ == "__main__":
+    bot.run(DISCORD_BOT_TOKEN)
