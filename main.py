@@ -109,10 +109,12 @@ def parse_data(date: str, items: list, body: str) -> dict:
 def get_player_page(base_url, pseudo, server, level):
     query_string = f"?text={pseudo}&character_homeserv[]={server or ''}&character_level_min={level or '1'}&character_level_max={level or '200'}"
     url = f"{base_url}{query_string}"
+    print(f"Constructed player page URL: {url}")
     response = requests.get(url)
     if response.status_code == 200:
         return response.url
     return None
+
 
 def parse_player_data(html, link, lang):
     soup = BeautifulSoup(html, 'html.parser')
@@ -141,9 +143,16 @@ async def whois(interaction: discord.Interaction, pseudo: str, level: int = None
 
     base_url = f"{settings['encyclopedia']['base_url']}/{settings['encyclopedia']['player_url'][lang_index]}"
     try:
+        print(f"Using base URL: {base_url}")
+        print(f"Parameters - Pseudo: {pseudo}, Server: {server}, Level: {level}")
+        
         link = get_player_page(base_url, pseudo, server, level)
+        print(f"Player page link: {link}")
+        
         if link:
             response = requests.get(link)
+            print(f"Response status code: {response.status_code}")
+            
             if response.status_code == 200:
                 data = parse_player_data(response.text, link, config['lang'])
                 await interaction.followup.send(embed=create_player_embed(data, config['lang']))
