@@ -128,8 +128,11 @@ async def on_ready():
 async def whois(interaction: discord.Interaction, pseudo: str, level: int = None, server: int = None):
     await interaction.response.defer()
     pseudo = pseudo.lower()
-    config = {'lang': 'en'}
-    base_url = f"{settings['encyclopedia']['base_url']}/{settings['encyclopedia']['player_url'][config['lang']]}"
+    lang_map = {'fr': 0, 'en': 1}
+    config = {'lang': 'en'}  # Default language is set to English
+    lang_index = lang_map.get(config['lang'], 1)  # Default to English if language not found
+
+    base_url = f"{settings['encyclopedia']['base_url']}/{settings['encyclopedia']['player_url'][lang_index]}"
     try:
         link = get_player_page(base_url, pseudo, server, level)
         if link:
@@ -144,6 +147,7 @@ async def whois(interaction: discord.Interaction, pseudo: str, level: int = None
     except Exception as e:
         await interaction.followup.send(embed=create_error_embed(config['lang'], base_url, 500))
         print(f"Error: {e}")
+
 
 @bot.tree.command(name="fetch_data")
 async def fetch_data(interaction: discord.Interaction):
