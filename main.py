@@ -107,21 +107,27 @@ def parse_data(date: str, items: list, body: str) -> dict:
     }
 
 def get_player_page(base_url, pseudo, server, level):
-    query_string = f"?text={pseudo}"
-    if server:
-        query_string += f"&character_homeserv[]={server}"
-    if level:
-        query_string += f"&character_level_min={level}&character_level_max={level}"
-    else:
-        query_string += "&character_level_min=1&character_level_max=200"
+    from urllib.parse import urlencode
 
-    url = f"{base_url}{query_string}"
-    print(f"Constructed player page URL: {url}")
-    response = requests.get(url)
-    print(f"Player page response status code: {response.status_code}")
+    params = {
+        "text": pseudo,
+        "character_homeserv[]": server,
+        "character_level_min": level or 1,
+        "character_level_max": level or 200
+    }
+    query_string = urlencode(params, doseq=True)
+    search_url = f"{base_url}?{query_string}"
+    print(f"Constructed player page search URL: {search_url}")
+    
+    response = requests.get(search_url)
+    print(f"Search response status code: {response.status_code}")
+    print(f"Search response content: {response.text[:500]}")  # Print only the first 500 characters for debugging
 
     if response.status_code == 200:
-        return response.url
+        soup = BeautifulSoup(response.text, 'html.parser')
+        result = soup.find('a', class_='ak-directories-more')
+        if result and 'href' in result.attrs:
+            return result['href']
     return None
 
 
@@ -143,7 +149,7 @@ async def on_ready():
     print(f'We have logged in as {bot.user}')
 
 @bot.tree.command(name="whois")
-async def whois(interaction: discord.Interaction, pseudo: str, level: int = None, server: str = None):
+async def whois(interaction: discord.Interaction, pseudo: str, level: int = None, server: str = "406"):
     await interaction.response.defer()
     pseudo = pseudo.lower()
     lang_map = {'fr': 0, 'en': 1}
