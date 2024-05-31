@@ -39,5 +39,15 @@
         "thumbnail_author": "https://i.imgur.com/jlfQOoY.png",
         "not_found_url": "https://i.imgur.com/nDZnMwu.jpg"
     },
-    "creator": "momonga"
+    "creator": "momonga",
+    "language": {
+        "en": {
+            "ERROR_TITLE": "Error",
+            "ERROR_DESCRIPTION": "An error occurred while processing your request."
+        },
+        "fr": {
+            "ERROR_TITLE": "Erreur",
+            "ERROR_DESCRIPTION": "Une erreur s'est produite lors du traitement de votre demande."
+        }
+    }
 }
