@@ -48,10 +48,17 @@ def create_player_embed(data, lang):
     return embed
 
 def create_error_embed(lang, url, error_code):
-    embed = Embed(title=sentences[lang]['ERROR_TITLE'], description=sentences[lang]['ERROR_DESCRIPTION'])
+    try:
+        title = settings['language'][lang]['ERROR_TITLE']
+        description = settings['language'][lang]['ERROR_DESCRIPTION']
+    except KeyError:
+        title = "Error"
+        description = "An error occurred."
+    embed = Embed(title=title, description=description)
     embed.add_field(name="URL", value=url)
     embed.add_field(name="Error Code", value=error_code)
     return embed
+
 
 def get_json(scope: str) -> dict:
     response = requests.post(
@@ -144,6 +151,8 @@ async def whois(interaction: discord.Interaction, pseudo: str, level: int = None
                 await interaction.followup.send(embed=create_error_embed(config['lang'], link, response.status_code))
         else:
             await interaction.followup.send(embed=create_error_embed(config['lang'], base_url, 404))
+    except KeyError as ke:
+        await interaction.followup.send(f"KeyError: {ke} - Please check your language configuration.")
     except Exception as e:
         await interaction.followup.send(embed=create_error_embed(config['lang'], base_url, 500))
         print(f"Error: {e}")
