@@ -1,118 +1,78 @@
-import os
-import json
+import discord
+from discord import app_commands
 import requests
 from bs4 import BeautifulSoup
-from discord.ext import commands
-from discord import Intents, Embed, app_commands
+import os
 
-import discord
+# Load token from environment variable
+TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 
-DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+# Server IDs mapping
+servers = {
+    'dodge': 406,
+    'grandapan': 403,
+    'herdegrize': 404,
+    'terra-cogita': 405,
+    # Add other servers if needed
+}
 
-# Load configuration and sentences
-with open('config.json') as f:
-    settings = json.load(f)
-
-with open('language.json') as f:
-    sentences = json.load(f)
-
-# Constants
-VERSION = os.getenv("API_VERSION", "1.49.5")
-
-# Initialize the bot
-intents = Intents.default()
-intents.message_content = True
-bot = commands.Bot(command_prefix='!', intents=intents)
+intents = discord.Intents.default()
+bot = discord.Client(intents=intents)
+tree = app_commands.CommandTree(bot)
 
 @bot.event
 async def on_ready():
-    await bot.tree.sync()
-    print(f'We have logged in as {bot.user}')
+    await tree.sync()
+    print(f'Bot is ready. Logged in as {bot.user}')
 
-@bot.tree.command(name="whois")
-async def whois(interaction: discord.Interaction, pseudo: str, level: int = None, server: str = "406"):
-    await interaction.response.defer()
-    pseudo = pseudo.lower()
-    lang_map = {'fr': 0, 'en': 1}
-    config = {'lang': 'en'}  # Default language is set to English
-    lang_index = lang_map.get(config['lang'], 1)  # Default to English if language not found
+def fetch_character_info(name, server, level_min, level_max):
+    server_id = servers.get(server.lower())
+    if not server_id:
+        return None, f"Server '{server}' not found."
 
-    base_url = f"{settings['encyclopedia']['base_url']}/{settings['encyclopedia']['player_url'][lang_index]}"
-    try:
-        print(f"Using base URL: {base_url}")
-        print(f"Parameters - Pseudo: {pseudo}, Server: {server}, Level: {level}")
-        
-        player_url = get_player_url(pseudo, server, level, config['lang'])
-        print(f"Player page URL: {player_url}")
-        
-        if player_url:
-            response = requests.get(player_url)
-            print(f"Response status code: {response.status_code}")
-            
-            if response.status_code == 200:
-                data = parse_player_data(response.text, player_url, config['lang'])
-                await interaction.followup.send(embed=create_player_embed(data, config['lang']))
-            else:
-                await interaction.followup.send(embed=create_error_embed(config['lang'], player_url, response.status_code))
-        else:
-            await interaction.followup.send(embed=create_error_embed(config['lang'], base_url, 404))
-    except KeyError as ke:
-        await interaction.followup.send(f"KeyError: {ke} - Please check your language configuration.")
-    except Exception as e:
-        await interaction.followup.send(embed=create_error_embed(config['lang'], base_url, 500))
-        print(f"Error: {e}")
+    url = (
+        f"https://www.dofus-touch.com/en/mmorpg/community/directories/character-pages"
+        f"?text={name}&character_homeserv%5B%5D={server_id}"
+        f"&character_level_min={level_min}&character_level_max={level_max}#jt_list"
+    )
+    response = requests.get(url)
+    if response.status_code != 200:
+        return None, "Failed to fetch data from the website."
 
-def create_error_embed(lang, url, error_code):
-    try:
-        title = settings['language'][lang]['ERROR_TITLE']
-        description = settings['language'][lang]['ERROR_DESCRIPTION']
-    except KeyError:
-        title = "Error"
-        description = "An error occurred."
-    embed = Embed(title=title, description=description)
-    embed.add_field(name="URL", value=url)
-    embed.add_field(name="Error Code", value=error_code)
-    return embed
+    soup = BeautifulSoup(response.text, 'html.parser')
+    first_result = soup.find('div', class_='ak-character-info')  # Adjust based on actual HTML structure
+    if not first_result:
+        return None, "No results found."
 
-def get_player_url(pseudo, server, level, lang):
-    base_search_url = settings['encyclopedia']['base_url'] + "/mmorpg/community/directories/character-pages"
-    params = {
-        "text": pseudo,
-        "character_homeserv[]": server,
-        "character_level_min": level if level else 1,
-        "character_level_max": level if level else 200
+    first_result_link = first_result.find('a')['href']
+    first_result_url = f"https://www.dofus-touch.com{first_result_link}"
+    
+    # Extracting additional details for embedding
+    character_name = first_result.find('div', class_='ak-name').text.strip()
+    character_level = first_result.find('div', class_='ak-level').text.strip()
+    character_class = first_result.find('div', class_='ak-class').text.strip()
+    
+    character_info = {
+        'url': first_result_url,
+        'name': character_name,
+        'level': character_level,
+        'class': character_class
     }
-    search_url = base_search_url + "?" + "&".join([f"{key}={value}" for key, value in params.items()])
-    print(f"Constructed search URL: {search_url}")
     
-    response = requests.get(search_url)
-    print(f"Search response status code: {response.status_code}")
-    
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.text, 'html.parser')
-        character_link = soup.find('a', class_='ak-directories-more')['href']
-        return settings['encyclopedia']['base_url'] + character_link
-    return None
+    return character_info, None
 
-def parse_player_data(html, link, lang):
-    soup = BeautifulSoup(html, 'html.parser')
-    data = {}
-    main_info = soup.find('div', class_='ak-directories-main-infos')
-    data['image'] = soup.find('div', class_='ak-entitylook')['style'].split('(')[1].split(')')[0]
-    data['name'] = soup.find('h1', class_='ak-return-link').text.strip()
-    data['level'] = main_info.find_next('div').text.strip().split()[1]
-    data['race'] = main_info.contents[1].previous_element.strip()
-    data['server'] = soup.find('span', class_='ak-directories-server-name').next_element.strip()
-    data['link'] = link
-    return data
+@bot.tree.command(name='search', description='Search for a character')
+async def search(interaction: discord.Interaction, name: str, server: str, level_min: int, level_max: int):
+    result, error = fetch_character_info(name, server, level_min, level_max)
+    if error:
+        await interaction.response.send_message(error)
+    else:
+        embed = discord.Embed(
+            title=result['name'],
+            url=result['url'],
+            description=f"Class: {result['class']}\nLevel: {result['level']}",
+            color=discord.Color.blue()
+        )
+        await interaction.response.send_message(embed=embed)
 
-def create_player_embed(data, lang):
-    embed = Embed(title=data["name"], description=data.get("presentation", ""))
-    embed.set_thumbnail(url=data["image"])
-    embed.add_field(name="Level", value=data["level"], inline=True)
-    embed.add_field(name="Race", value=data["race"], inline=True)
-    embed.add_field(name="Server", value=data["server"], inline=True)
-    return embed
-
-if __name__ == "__main__":
-    bot.run(DISCORD_BOT_TOKEN)
+bot.run(DISCORD_BOT_TOKEN)
