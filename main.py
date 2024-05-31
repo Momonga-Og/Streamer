@@ -35,7 +35,11 @@ def fetch_character_info(name, server, level_min, level_max):
         f"?text={name}&character_homeserv%5B%5D={server_id}"
         f"&character_level_min={level_min}&character_level_max={level_max}#jt_list"
     )
+    print(f"Fetching URL: {url}")  # Log the URL for debugging
+
     response = requests.get(url)
+    print(f"HTTP Response Status Code: {response.status_code}")  # Log the status code
+
     if response.status_code != 200:
         return None, "Failed to fetch data from the website."
 
