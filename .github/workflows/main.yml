@@ -34,6 +34,9 @@ jobs:
         path: data/
       continue-on-error: true
 
+    - name: List files in data directory
+      run: ls -la data
+
     - name: Run the bot
       env:
         DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
