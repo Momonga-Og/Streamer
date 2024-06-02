@@ -256,11 +256,8 @@ async def check_voice_channels():
                 for achievement in achievements:
                     await announce_achievement(member.guild.system_channel, member, achievement)
 
-# Slash command to check XP and Elo
 @tree.command(name="xp", description="Check your XP and Elo")
 async def xp(interaction: discord.Interaction):
-    await interaction.response.defer()  # Defer the response to avoid timeout
-    
     user_id = str(interaction.user.id)
     user_data = db.get_user_data(user_id)
     
@@ -269,7 +266,8 @@ async def xp(interaction: discord.Interaction):
     else:
         response_message = f'{interaction.user.name}, you have no XP yet.'
     
-    await interaction.followup.send(response_message)
+    await interaction.response.send_message(response_message)
+
 
 # Slash command to check voice chat time in minutes
 @tree.command(name="vc", description="Check your time spent in voice chat")
