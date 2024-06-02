@@ -7,20 +7,52 @@ import asyncio
 
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
-# Connect to the database (or create it if it doesn't exist)
-conn = sqlite3.connect('discord_bot.db')
-cursor = conn.cursor()
+# Database handling class
+class Database:
+    def __init__(self, db_name='discord_bot.db'):
+        self.db_name = db_name
+        self.conn = sqlite3.connect(self.db_name)
+        self.cursor = self.conn.cursor()
+        self.create_table()
 
-# Create a table for storing user data if it doesn't exist
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS users (
-    user_id TEXT PRIMARY KEY,
-    xp INTEGER NOT NULL,
-    level INTEGER NOT NULL,
-    time_spent INTEGER NOT NULL DEFAULT 0
-)
-''')
-conn.commit()
+    def create_table(self):
+        self.cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            user_id TEXT PRIMARY KEY,
+            xp INTEGER NOT NULL,
+            level INTEGER NOT NULL,
+            time_spent INTEGER NOT NULL DEFAULT 0
+        )
+        ''')
+        self.conn.commit()
+
+    def close(self):
+        self.conn.close()
+
+    def add_xp(self, user_id, xp, time_spent=0):
+        self.cursor.execute('SELECT xp, level, time_spent FROM users WHERE user_id = ?', (user_id,))
+        user = self.cursor.fetchone()
+
+        if user:
+            new_xp = user[0] + xp
+            new_time_spent = user[2] + time_spent
+            new_level = calculate_level(new_xp)
+            self.cursor.execute('UPDATE users SET xp = ?, level = ?, time_spent = ? WHERE user_id = ?', (new_xp, new_level, new_time_spent, user_id))
+        else:
+            new_xp = xp
+            new_level = calculate_level(new_xp)
+            new_time_spent = time_spent
+            self.cursor.execute('INSERT INTO users (user_id, xp, level, time_spent) VALUES (?, ?, ?, ?)', (user_id, new_xp, new_level, new_time_spent))
+
+        self.conn.commit()
+        return new_level
+
+    def get_user_data(self, user_id):
+        self.cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))
+        return self.cursor.fetchone()
+
+# Initialize the database
+db = Database()
 
 # Define XP and level calculation
 def calculate_level(xp):
@@ -46,30 +78,6 @@ def elo_name(level):
     elif level >= 50:
         return "Diamond Elo"
     return "Unranked"
-
-# Function to add XP to a user
-def add_xp(user_id, xp, time_spent=0):
-    cursor.execute('SELECT xp, level, time_spent FROM users WHERE user_id = ?', (user_id,))
-    user = cursor.fetchone()
-    
-    if user:
-        new_xp = user[0] + xp
-        new_time_spent = user[2] + time_spent
-        new_level = calculate_level(new_xp)
-        cursor.execute('UPDATE users SET xp = ?, level = ?, time_spent = ? WHERE user_id = ?', (new_xp, new_level, new_time_spent, user_id))
-    else:
-        new_xp = xp
-        new_level = calculate_level(new_xp)
-        new_time_spent = time_spent
-        cursor.execute('INSERT INTO users (user_id, xp, level, time_spent) VALUES (?, ?, ?, ?)', (user_id, new_xp, new_level, new_time_spent))
-    
-    conn.commit()
-    return new_level
-
-# Function to retrieve user data
-def get_user_data(user_id):
-    cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))
-    return cursor.fetchone()
 
 # Function to create roles
 async def create_roles(guild):
@@ -126,10 +134,10 @@ async def on_message(message):
         return
     
     user_id = str(message.author.id)
-    user_data = get_user_data(user_id)
+    user_data = db.get_user_data(user_id)
     previous_level = user_data[2] if user_data else 0
     
-    new_level = add_xp(user_id, 10)  # Add 10 XP per message
+    new_level = db.add_xp(user_id, 10)  # Add 10 XP per message
     
     if user_data:
         print(f"{message.author.name} has {user_data[1]} XP and is at level {user_data[2]} ({elo_name(user_data[2])})")
@@ -146,10 +154,10 @@ async def on_reaction_add(reaction, user):
         return
     
     user_id = str(user.id)
-    user_data = get_user_data(user_id)
+    user_data = db.get_user_data(user_id)
     previous_level = user_data[2] if user_data else 0
     
-    new_level = add_xp(user_id, 10)  # Add 10 XP per interaction
+    new_level = db.add_xp(user_id, 10)  # Add 10 XP per interaction
     
     if user_data:
         print(f"{user.name} has {user_data[1]} XP and is at level {user_data[2]} ({elo_name(user_data[2])})")
@@ -172,10 +180,10 @@ async def on_voice_state_update(member, before, after):
             start_time = voice_states.pop(member.id)
             time_spent = (discord.utils.utcnow() - start_time).total_seconds()
             user_id = str(member.id)
-            user_data = get_user_data(user_id)
+            user_data = db.get_user_data(user_id)
             previous_level = user_data[2] if user_data else 0
             
-            new_level = add_xp(user_id, int(time_spent / 3600 * 100))  # Add 100 XP per hour spent
+            new_level = db.add_xp(user_id, int(time_spent / 3600 * 100))  # Add 100 XP per hour spent
             
             if user_data:
                 print(f"{member.name} has {user_data[1]} XP and is at level {user_data[2]} ({elo_name(user_data[2])})")
@@ -191,10 +199,10 @@ async def check_voice_channels():
         time_spent = (current_time - start_time).total_seconds()
         if time_spent >= 3600:
             user_id = str(member_id)
-            user_data = get_user_data(user_id)
+            user_data = db.get_user_data(user_id)
             previous_level = user_data[2] if user_data else 0
             
-            new_level = add_xp(user_id, 100)  # Add 100 XP for each hour spent
+            new_level = db.add_xp(user_id, 100)  # Add 100 XP for each hour spent
             
             voice_states[member_id] = current_time
             member = discord.utils.get(bot.get_all_members(), id=int(member_id))
@@ -209,25 +217,33 @@ async def check_voice_channels():
 # Slash command to check XP and Elo
 @tree.command(name="xp", description="Check your XP and Elo")
 async def xp(interaction: discord.Interaction):
+    await interaction.response.defer()  # Defer the response to avoid timeout
+    
     user_id = str(interaction.user.id)
-    user_data = get_user_data(user_id)
+    user_data = db.get_user_data(user_id)
     
     if user_data:
-        await interaction.response.send_message(f'{interaction.user.name}, you have {user_data[1]} XP and are at level {user_data[2]} ({elo_name(user_data[2])})')
+        response_message = f'{interaction.user.name}, you have {user_data[1]} XP and are at level {user_data[2]} ({elo_name(user_data[2])})'
     else:
-        await interaction.response.send_message(f'{interaction.user.name}, you have no XP yet.')
+        response_message = f'{interaction.user.name}, you have no XP yet.'
+    
+    await interaction.followup.send(response_message)
 
 # Slash command to check voice chat time in minutes
 @tree.command(name="vc", description="Check your time spent in voice chat")
 async def vc(interaction: discord.Interaction):
+    await interaction.response.defer()  # Defer the response to avoid timeout
+    
     user_id = str(interaction.user.id)
-    user_data = get_user_data(user_id)
+    user_data = db.get_user_data(user_id)
     
     if user_data:
         time_spent_minutes = user_data[3] / 60  # Convert seconds to minutes
-        await interaction.response.send_message(f'{interaction.user.name}, you have spent {time_spent_minutes:.2f} minutes in voice chat.')
+        response_message = f'{interaction.user.name}, you have spent {time_spent_minutes:.2f} minutes in voice chat.'
     else:
-        await interaction.response.send_message(f'{interaction.user.name}, you have no voice chat time recorded yet.')
+        response_message = f'{interaction.user.name}, you have no voice chat time recorded yet.'
+    
+    await interaction.followup.send(response_message)
 
 # Slash command to send a message through the bot, only visible to the bot owner
 @tree.command(name="send_message", description="Send a message through the bot")
@@ -243,7 +259,7 @@ async def send_message(interaction: discord.Interaction, message: str):
 # Close the database connection on bot disconnect
 @bot.event
 async def on_disconnect():
-    conn.close()
+    db.close()
 
 # Add your bot token here
 bot.run(DISCORD_BOT_TOKEN)
