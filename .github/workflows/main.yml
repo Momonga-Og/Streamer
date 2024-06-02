@@ -27,11 +27,19 @@ jobs:
       run: mkdir -p data
 
     - name: Attempt to restore database
+      id: download_db
       uses: actions/download-artifact@v2
       with:
         name: discord_bot_db
         path: data/
       continue-on-error: true
+
+    - name: Check if database was downloaded
+      run: |
+        if [ ! -f data/discord_bot.db ]; then
+          echo "Database not found, creating a new one."
+          touch data/discord_bot.db
+        fi
 
     - name: List files in data directory after download
       run: ls -la data
