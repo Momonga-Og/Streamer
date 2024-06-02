@@ -28,6 +28,13 @@ class Database:
             time_spent INTEGER NOT NULL DEFAULT 0
         )
         ''')
+        self.cursor.execute('''
+        CREATE TABLE IF NOT EXISTS achievements (
+            user_id TEXT,
+            achievement TEXT,
+            PRIMARY KEY (user_id, achievement)
+        )
+        ''')
         self.conn.commit()
 
     def close(self):
@@ -67,6 +74,19 @@ class Database:
         top_users = self.cursor.fetchall()
         self.close()
         return top_users
+
+    def has_achievement(self, user_id, achievement):
+        self.connect()
+        self.cursor.execute('SELECT 1 FROM achievements WHERE user_id = ? AND achievement = ?', (user_id, achievement))
+        has_it = self.cursor.fetchone() is not None
+        self.close()
+        return has_it
+
+    def add_achievement(self, user_id, achievement):
+        self.connect()
+        self.cursor.execute('INSERT OR IGNORE INTO achievements (user_id, achievement) VALUES (?, ?)', (user_id, achievement))
+        self.conn.commit()
+        self.close()
 
 # Initialize the database
 db = Database()
@@ -138,9 +158,9 @@ async def announce_achievement(channel, member, achievement):
 # Function to check achievements
 def check_achievements(user_id, xp):
     achievements = []
-    if xp >= 1000:
+    if xp >= 1000 and not db.has_achievement(user_id, "1000 XP Milestone"):
         achievements.append("1000 XP Milestone")
-    if xp >= 5000:
+    if xp >= 5000 and not db.has_achievement(user_id, "5000 XP Milestone"):
         achievements.append("5000 XP Milestone")
     return achievements
 
@@ -184,6 +204,7 @@ async def on_message(message):
     
     achievements = check_achievements(user_id, user_data[1] + 10 if user_data else 10)
     for achievement in achievements:
+        db.add_achievement(user_id, achievement)
         await announce_achievement(message.channel, message.author, achievement)
     
     await bot.process_commands(message)
@@ -208,6 +229,7 @@ async def on_reaction_add(reaction, user):
 
     achievements = check_achievements(user_id, user_data[1] + 10 if user_data else 10)
     for achievement in achievements:
+        db.add_achievement(user_id, achievement)
         await announce_achievement(reaction.message.channel, user, achievement)
 
 @bot.event
@@ -240,6 +262,7 @@ async def on_voice_state_update(member, before, after):
 
             achievements = check_achievements(user_id, user_data[1] + int(time_spent / 3600 * 100) if user_data else int(time_spent / 3600 * 100))
             for achievement in achievements:
+                db.add_achievement(user_id, achievement)
                 await announce_achievement(before.channel, member, achievement)
 
 @tasks.loop(minutes=1)
@@ -266,6 +289,7 @@ async def check_voice_channels():
 
                 achievements = check_achievements(user_id, user_data[1] + 100 if user_data else 100)
                 for achievement in achievements:
+                    db.add_achievement(user_id, achievement)
                     await announce_achievement(member.guild.system_channel, member, achievement)
 
 @tree.command(name="xp", description="Check your XP and Elo")
