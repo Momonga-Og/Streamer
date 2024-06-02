@@ -24,8 +24,13 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Restore database
-      id: restore-db
+    - name: Check if previous artifact exists
+      id: artifact-check
+      run: echo "Checking for previous artifact"
+      continue-on-error: true
+
+    - name: Restore database if exists
+      if: steps.artifact-check.outcome == 'success'
       uses: actions/download-artifact@v2
       with:
         name: discord_bot_db
