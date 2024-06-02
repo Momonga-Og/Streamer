@@ -5,9 +5,7 @@ from discord.ext import commands, tasks
 from discord import app_commands
 import asyncio
 
-
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-
 
 # Connect to the database (or create it if it doesn't exist)
 conn = sqlite3.connect('discord_bot.db')
@@ -120,6 +118,7 @@ async def on_ready():
     for guild in bot.guilds:
         await create_roles(guild)
     check_voice_channels.start()
+    await bot.tree.sync()
 
 @bot.event
 async def on_message(message):
@@ -127,12 +126,12 @@ async def on_message(message):
         return
     
     user_id = str(message.author.id)
-    new_level = add_xp(user_id, 10)  # Add 10 XP per message
     user_data = get_user_data(user_id)
+    new_level = add_xp(user_id, 10)  # Add 10 XP per message
     
     print(f"{message.author.name} has {user_data[1]} XP and is at level {user_data[2]} ({elo_name(user_data[2])})")
     
-    if new_level > user_data[2]:  # Check if user has leveled up
+    if user_data and new_level > user_data[2]:  # Check if user has leveled up
         await assign_role(message.author, new_level)
         await announce_level_up(message.channel, message.author, new_level)
     
@@ -144,12 +143,12 @@ async def on_reaction_add(reaction, user):
         return
     
     user_id = str(user.id)
-    new_level = add_xp(user_id, 10)  # Add 10 XP per interaction
     user_data = get_user_data(user_id)
+    new_level = add_xp(user_id, 10)  # Add 10 XP per interaction
     
     print(f"{user.name} has {user_data[1]} XP and is at level {user_data[2]} ({elo_name(user_data[2])})")
     
-    if new_level > user_data[2]:  # Check if user has leveled up
+    if user_data and new_level > user_data[2]:  # Check if user has leveled up
         await assign_role(user, new_level)
         await announce_level_up(reaction.message.channel, user, new_level)
 
@@ -167,10 +166,10 @@ async def on_voice_state_update(member, before, after):
             start_time = voice_states.pop(member.id)
             time_spent = (discord.utils.utcnow() - start_time).total_seconds()
             user_id = str(member.id)
-            new_level = add_xp(user_id, int(time_spent / 3600 * 100))  # Add 100 XP per hour spent
             user_data = get_user_data(user_id)
+            new_level = add_xp(user_id, int(time_spent / 3600 * 100))  # Add 100 XP per hour spent
             print(f"{member.name} has {user_data[1]} XP and is at level {user_data[2]} ({elo_name(user_data[2])})")
-            if new_level > user_data[2]:  # Check if user has leveled up
+            if user_data and new_level > user_data[2]:  # Check if user has leveled up
                 await assign_role(member, new_level)
                 await announce_level_up(before.channel, member, new_level)
 
@@ -181,13 +180,13 @@ async def check_voice_channels():
         time_spent = (current_time - start_time).total_seconds()
         if time_spent >= 3600:
             user_id = str(member_id)
+            user_data = get_user_data(user_id)
             new_level = add_xp(user_id, 100)  # Add 100 XP for each hour spent
             voice_states[member_id] = current_time
             member = discord.utils.get(bot.get_all_members(), id=int(member_id))
             if member:
-                user_data = get_user_data(user_id)
                 print(f"{member.name} has {user_data[1]} XP and is at level {user_data[2]} ({elo_name(user_data[2])})")
-                if new_level > user_data[2]:  # Check if user has leveled up
+                if user_data and new_level > user_data[2]:  # Check if user has leveled up
                     await assign_role(member, new_level)
                     await announce_level_up(member.guild.system_channel, member, new_level)
 
@@ -214,7 +213,6 @@ async def vc(interaction: discord.Interaction):
     else:
         await interaction.response.send_message(f'{interaction.user.name}, you have no voice chat time recorded yet.')
 
-
 # Slash command to send a message through the bot, only visible to the bot owner
 @tree.command(name="send_message", description="Send a message through the bot")
 @app_commands.describe(message="The message to send")
@@ -226,12 +224,8 @@ async def send_message(interaction: discord.Interaction, message: str):
     else:
         await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
 
-# Sync the commands with Discord
-@bot.event
-async def on_ready():
-    await bot.tree.sync()
+# Sync the commands with Discord in on_ready event
 
-# Close the database connection on bot disconnect
 @bot.event
 async def on_disconnect():
     conn.close()
