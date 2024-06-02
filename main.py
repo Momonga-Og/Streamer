@@ -4,6 +4,7 @@ import discord
 from discord.ext import commands, tasks
 from discord import app_commands
 import asyncio
+import random
 
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
@@ -53,9 +54,12 @@ class Database:
         self.cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))
         return self.cursor.fetchone()
 
+    def get_top_users(self, limit=10):
+        self.cursor.execute('SELECT user_id, xp, level FROM users ORDER BY xp DESC LIMIT ?', (limit,))
+        return self.cursor.fetchall()
+
 # Initialize the database
 db = Database()
-
 
 # Define XP and level calculation
 def calculate_level(xp):
@@ -111,6 +115,25 @@ async def announce_level_up(channel, member, level):
     embed.set_thumbnail(url=member.avatar.url)
     await channel.send(embed=embed)
 
+# Function to announce achievements
+async def announce_achievement(channel, member, achievement):
+    embed = discord.Embed(
+        title="🏆 Achievement Unlocked! 🏆",
+        description=f"{member.mention} has unlocked **{achievement}**!",
+        color=discord.Color.blue()
+    )
+    embed.set_thumbnail(url=member.avatar.url)
+    await channel.send(embed=embed)
+
+# Function to check achievements
+def check_achievements(user_id, xp):
+    achievements = []
+    if xp >= 1000:
+        achievements.append("1000 XP Milestone")
+    if xp >= 5000:
+        achievements.append("5000 XP Milestone")
+    return achievements
+
 # Bot setup
 intents = discord.Intents.default()
 intents.message_content = True
@@ -149,6 +172,10 @@ async def on_message(message):
         await assign_role(message.author, new_level)
         await announce_level_up(message.channel, message.author, new_level)
     
+    achievements = check_achievements(user_id, user_data[1] + 10 if user_data else 10)
+    for achievement in achievements:
+        await announce_achievement(message.channel, message.author, achievement)
+    
     await bot.process_commands(message)
 
 @bot.event
@@ -168,6 +195,10 @@ async def on_reaction_add(reaction, user):
     if new_level > previous_level:  # Check if user has leveled up
         await assign_role(user, new_level)
         await announce_level_up(reaction.message.channel, user, new_level)
+
+    achievements = check_achievements(user_id, user_data[1] + 10 if user_data else 10)
+    for achievement in achievements:
+        await announce_achievement(reaction.message.channel, user, achievement)
 
 @bot.event
 async def on_voice_state_update(member, before, after):
@@ -195,6 +226,10 @@ async def on_voice_state_update(member, before, after):
                 await assign_role(member, new_level)
                 await announce_level_up(before.channel, member, new_level)
 
+            achievements = check_achievements(user_id, user_data[1] + int(time_spent / 3600 * 100) if user_data else int(time_spent / 3600 * 100))
+            for achievement in achievements:
+                await announce_achievement(before.channel, member, achievement)
+
 @tasks.loop(minutes=1)
 async def check_voice_channels():
     current_time = discord.utils.utcnow()
@@ -216,6 +251,10 @@ async def check_voice_channels():
                 if new_level > previous_level:  # Check if user has leveled up
                     await assign_role(member, new_level)
                     await announce_level_up(member.guild.system_channel, member, new_level)
+
+                achievements = check_achievements(user_id, user_data[1] + 100 if user_data else 100)
+                for achievement in achievements:
+                    await announce_achievement(member.guild.system_channel, member, achievement)
 
 # Slash command to check XP and Elo
 @tree.command(name="xp", description="Check your XP and Elo")
@@ -258,6 +297,75 @@ async def send_message(interaction: discord.Interaction, message: str):
         await interaction.response.send_message("Message sent!", ephemeral=True)
     else:
         await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
+
+# Slash command to show leaderboard
+@tree.command(name="leaderboard", description="Show the top users by XP")
+async def leaderboard(interaction: discord.Interaction):
+    await interaction.response.defer()  # Defer the response to avoid timeout
+
+    top_users = db.get_top_users()
+    embed = discord.Embed(title="🏆 Leaderboard 🏆", color=discord.Color.gold())
+    for i, (user_id, xp, level) in enumerate(top_users, start=1):
+        user = await bot.fetch_user(user_id)
+        embed.add_field(name=f"{i}. {user.name}", value=f"XP: {xp}, Level: {level} ({elo_name(level)})", inline=False)
+    
+    await interaction.followup.send(embed=embed)
+
+# Slash command to show user profile
+@tree.command(name="profile", description="Show your profile or another user's profile")
+@app_commands.describe(user="The user to show the profile for")
+async def profile(interaction: discord.Interaction, user: discord.User = None):
+    await interaction.response.defer()  # Defer the response to avoid timeout
+
+    if user is None:
+        user = interaction.user
+    
+    user_id = str(user.id)
+    user_data = db.get_user_data(user_id)
+
+    if user_data:
+        embed = discord.Embed(title=f"{user.name}'s Profile", color=discord.Color.blue())
+        embed.add_field(name="XP", value=user_data[1], inline=False)
+        embed.add_field(name="Level", value=f"{user_data[2]} ({elo_name(user_data[2])})", inline=False)
+        embed.add_field(name="Time Spent in Voice Chat", value=f"{user_data[3] / 60:.2f} minutes", inline=False)
+    else:
+        embed = discord.Embed(title=f"{user.name}'s Profile", description="No data available", color=discord.Color.blue())
+    
+    await interaction.followup.send(embed=embed)
+
+# Slash command to show daily/weekly quests
+@tree.command(name="quest", description="Show your daily/weekly quests")
+async def quest(interaction: discord.Interaction):
+    await interaction.response.defer()  # Defer the response to avoid timeout
+
+    # Example quest data
+    quests = [
+        {"description": "Send 10 messages", "reward": "100 XP"},
+        {"description": "Spend 1 hour in voice chat", "reward": "200 XP"},
+    ]
+
+    embed = discord.Embed(title="🗺️ Quests 🗺️", color=discord.Color.green())
+    for quest in quests:
+        embed.add_field(name=quest["description"], value=f"Reward: {quest['reward']}", inline=False)
+    
+    await interaction.followup.send(embed=embed)
+
+# Slash command to show rewards
+@tree.command(name="rewards", description="Show available rewards")
+async def rewards(interaction: discord.Interaction):
+    await interaction.response.defer()  # Defer the response to avoid timeout
+
+    # Example rewards data
+    rewards = [
+        {"level": 5, "reward": "Custom Role"},
+        {"level": 10, "reward": "Special Badge"},
+    ]
+
+    embed = discord.Embed(title="🎁 Rewards 🎁", color=discord.Color.purple())
+    for reward in rewards:
+        embed.add_field(name=f"Level {reward['level']}", value=reward["reward"], inline=False)
+    
+    await interaction.followup.send(embed=embed)
 
 # Close the database connection on bot disconnect
 @bot.event
