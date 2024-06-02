@@ -24,7 +24,21 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
+    - name: Restore database
+      id: restore-db
+      uses: actions/download-artifact@v2
+      with:
+        name: discord_bot_db
+        path: discord_bot.db
+
     - name: Run the bot
       env:
         DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
       run: python main.py
+
+    - name: Save database
+      if: always()  # This ensures the step runs even if previous steps fail
+      uses: actions/upload-artifact@v2
+      with:
+        name: discord_bot_db
+        path: discord_bot.db
