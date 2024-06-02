@@ -7,20 +7,28 @@ import asyncio
 
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
-# Connect to the database (or create it if it doesn't exist)
-conn = sqlite3.connect('discord_bot.db')
-cursor = conn.cursor()
+# Context manager for database connection
+class DatabaseConnection:
+    def __enter__(self):
+        self.conn = sqlite3.connect('discord_bot.db')
+        self.cursor = self.conn.cursor()
+        return self.cursor
+    
+    def __exit__(self, exc_type, exc_value, traceback):
+        if exc_type is None:
+            self.conn.commit()
+        self.conn.close()
 
-# Create a table for storing user data if it doesn't exist
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS users (
-    user_id TEXT PRIMARY KEY,
-    xp INTEGER NOT NULL,
-    level INTEGER NOT NULL,
-    time_spent INTEGER NOT NULL DEFAULT 0
-)
-''')
-conn.commit()
+# Ensure the table exists
+with DatabaseConnection() as cursor:
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS users (
+        user_id TEXT PRIMARY KEY,
+        xp INTEGER NOT NULL,
+        level INTEGER NOT NULL,
+        time_spent INTEGER NOT NULL DEFAULT 0
+    )
+    ''')
 
 # Define XP and level calculation
 def calculate_level(xp):
@@ -49,27 +57,28 @@ def elo_name(level):
 
 # Function to add XP to a user
 def add_xp(user_id, xp, time_spent=0):
-    cursor.execute('SELECT xp, level, time_spent FROM users WHERE user_id = ?', (user_id,))
-    user = cursor.fetchone()
-    
-    if user:
-        new_xp = user[0] + xp
-        new_time_spent = user[2] + time_spent
-        new_level = calculate_level(new_xp)
-        cursor.execute('UPDATE users SET xp = ?, level = ?, time_spent = ? WHERE user_id = ?', (new_xp, new_level, new_time_spent, user_id))
-    else:
-        new_xp = xp
-        new_level = calculate_level(new_xp)
-        new_time_spent = time_spent
-        cursor.execute('INSERT INTO users (user_id, xp, level, time_spent) VALUES (?, ?, ?, ?)', (user_id, new_xp, new_level, new_time_spent))
-    
-    conn.commit()
+    with DatabaseConnection() as cursor:
+        cursor.execute('SELECT xp, level, time_spent FROM users WHERE user_id = ?', (user_id,))
+        user = cursor.fetchone()
+        
+        if user:
+            new_xp = user[0] + xp
+            new_time_spent = user[2] + time_spent
+            new_level = calculate_level(new_xp)
+            cursor.execute('UPDATE users SET xp = ?, level = ?, time_spent = ? WHERE user_id = ?', (new_xp, new_level, new_time_spent, user_id))
+        else:
+            new_xp = xp
+            new_level = calculate_level(new_xp)
+            new_time_spent = time_spent
+            cursor.execute('INSERT INTO users (user_id, xp, level, time_spent) VALUES (?, ?, ?, ?)', (user_id, new_xp, new_level, new_time_spent))
+        
     return new_level
 
 # Function to retrieve user data
 def get_user_data(user_id):
-    cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))
-    return cursor.fetchone()
+    with DatabaseConnection() as cursor:
+        cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))
+        return cursor.fetchone()
 
 # Function to create roles
 async def create_roles(guild):
@@ -126,14 +135,14 @@ async def on_message(message):
         return
     
     user_id = str(message.author.id)
-    user_data = get_user_data(user_id)
     new_level = add_xp(user_id, 10)  # Add 10 XP per message
+    user_data = get_user_data(user_id)
     
-    print(f"{message.author.name} has {user_data[1]} XP and is at level {user_data[2]} ({elo_name(user_data[2])})")
-    
-    if user_data and new_level > user_data[2]:  # Check if user has leveled up
-        await assign_role(message.author, new_level)
-        await announce_level_up(message.channel, message.author, new_level)
+    if user_data:
+        print(f"{message.author.name} has {user_data[1]} XP and is at level {user_data[2]} ({elo_name(user_data[2])})")
+        if new_level > user_data[2]:  # Check if user has leveled up
+            await assign_role(message.author, new_level)
+            await announce_level_up(message.channel, message.author, new_level)
     
     await bot.process_commands(message)
 
@@ -143,14 +152,14 @@ async def on_reaction_add(reaction, user):
         return
     
     user_id = str(user.id)
-    user_data = get_user_data(user_id)
     new_level = add_xp(user_id, 10)  # Add 10 XP per interaction
+    user_data = get_user_data(user_id)
     
-    print(f"{user.name} has {user_data[1]} XP and is at level {user_data[2]} ({elo_name(user_data[2])})")
-    
-    if user_data and new_level > user_data[2]:  # Check if user has leveled up
-        await assign_role(user, new_level)
-        await announce_level_up(reaction.message.channel, user, new_level)
+    if user_data:
+        print(f"{user.name} has {user_data[1]} XP and is at level {user_data[2]} ({elo_name(user_data[2])})")
+        if new_level > user_data[2]:  # Check if user has leveled up
+            await assign_role(user, new_level)
+            await announce_level_up(reaction.message.channel, user, new_level)
 
 @bot.event
 async def on_voice_state_update(member, before, after):
@@ -166,12 +175,13 @@ async def on_voice_state_update(member, before, after):
             start_time = voice_states.pop(member.id)
             time_spent = (discord.utils.utcnow() - start_time).total_seconds()
             user_id = str(member.id)
-            user_data = get_user_data(user_id)
             new_level = add_xp(user_id, int(time_spent / 3600 * 100))  # Add 100 XP per hour spent
-            print(f"{member.name} has {user_data[1]} XP and is at level {user_data[2]} ({elo_name(user_data[2])})")
-            if user_data and new_level > user_data[2]:  # Check if user has leveled up
-                await assign_role(member, new_level)
-                await announce_level_up(before.channel, member, new_level)
+            user_data = get_user_data(user_id)
+            if user_data:
+                print(f"{member.name} has {user_data[1]} XP and is at level {user_data[2]} ({elo_name(user_data[2])})")
+                if new_level > user_data[2]:  # Check if user has leveled up
+                    await assign_role(member, new_level)
+                    await announce_level_up(before.channel, member, new_level)
 
 @tasks.loop(minutes=1)
 async def check_voice_channels():
@@ -180,15 +190,16 @@ async def check_voice_channels():
         time_spent = (current_time - start_time).total_seconds()
         if time_spent >= 3600:
             user_id = str(member_id)
-            user_data = get_user_data(user_id)
             new_level = add_xp(user_id, 100)  # Add 100 XP for each hour spent
             voice_states[member_id] = current_time
             member = discord.utils.get(bot.get_all_members(), id=int(member_id))
             if member:
-                print(f"{member.name} has {user_data[1]} XP and is at level {user_data[2]} ({elo_name(user_data[2])})")
-                if user_data and new_level > user_data[2]:  # Check if user has leveled up
-                    await assign_role(member, new_level)
-                    await announce_level_up(member.guild.system_channel, member, new_level)
+                user_data = get_user_data(user_id)
+                if user_data:
+                    print(f"{member.name} has {user_data[1]} XP and is at level {user_data[2]} ({elo_name(user_data[2])})")
+                    if new_level > user_data[2]:  # Check if user has leveled up
+                        await assign_role(member, new_level)
+                        await announce_level_up(member.guild.system_channel, member, new_level)
 
 # Slash command to check XP and Elo
 @tree.command(name="xp", description="Check your XP and Elo")
@@ -224,8 +235,7 @@ async def send_message(interaction: discord.Interaction, message: str):
     else:
         await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
 
-# Sync the commands with Discord in on_ready event
-
+# Close the database connection on bot disconnect
 @bot.event
 async def on_disconnect():
     conn.close()
