@@ -208,16 +208,18 @@ async def on_voice_state_update(member, before, after):
     if before.channel is None and after.channel is not None:
         # User joined a voice channel
         voice_states[member.id] = discord.utils.utcnow()
+        print(f"{member.name} joined {after.channel.name}")
     elif before.channel is not None and after.channel is None:
         # User left a voice channel
         if member.id in voice_states:
             start_time = voice_states.pop(member.id)
             time_spent = (discord.utils.utcnow() - start_time).total_seconds()
+            print(f"{member.name} left {before.channel.name} after {time_spent} seconds")
             user_id = str(member.id)
             user_data = db.get_user_data(user_id)
             previous_level = user_data[2] if user_data else 0
             
-            new_level = db.add_xp(user_id, int(time_spent / 3600 * 100))  # Add 100 XP per hour spent
+            new_level = db.add_xp(user_id, int(time_spent / 3600 * 100), int(time_spent))  # Add 100 XP per hour spent
             
             if user_data:
                 print(f"{member.name} has {user_data[1]} XP and is at level {user_data[2]} ({elo_name(user_data[2])})")
@@ -240,7 +242,7 @@ async def check_voice_channels():
             user_data = db.get_user_data(user_id)
             previous_level = user_data[2] if user_data else 0
             
-            new_level = db.add_xp(user_id, 100)  # Add 100 XP for each hour spent
+            new_level = db.add_xp(user_id, 100, 3600)  # Add 100 XP for each hour spent
             
             voice_states[member_id] = current_time
             member = discord.utils.get(bot.get_all_members(), id=int(member_id))
@@ -276,8 +278,6 @@ async def xp(interaction: discord.Interaction):
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
         await interaction.followup.send("An unexpected error occurred. Please try again later.", ephemeral=True)
-
-
 
 # Slash command to check voice chat time in minutes
 @tree.command(name="vc", description="Check your time spent in voice chat")
