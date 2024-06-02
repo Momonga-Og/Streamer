@@ -9,11 +9,12 @@ DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
 # Database handling class
 class Database:
-    def __init__(self, db_name='discord_bot.db'):
+    def __init__(self, db_name='data/discord_bot.db'):
         self.db_name = db_name
         self.conn = sqlite3.connect(self.db_name)
         self.cursor = self.conn.cursor()
         self.create_table()
+        print(f"Database initialized at {os.path.abspath(self.db_name)}")
 
     def create_table(self):
         self.cursor.execute('''
@@ -27,6 +28,7 @@ class Database:
         self.conn.commit()
 
     def close(self):
+        self.conn.commit()
         self.conn.close()
 
     def add_xp(self, user_id, xp, time_spent=0):
@@ -53,6 +55,7 @@ class Database:
 
 # Initialize the database
 db = Database()
+
 
 # Define XP and level calculation
 def calculate_level(xp):
