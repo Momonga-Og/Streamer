@@ -7,7 +7,6 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -34,13 +33,16 @@ jobs:
         path: data/
       continue-on-error: true
 
-    - name: List files in data directory
+    - name: List files in data directory after download
       run: ls -la data
 
     - name: Run the bot
       env:
         DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
       run: python main.py
+
+    - name: List files in data directory before upload
+      run: ls -la data
 
     - name: Save database
       if: always()  # This ensures the step runs even if previous steps fail
