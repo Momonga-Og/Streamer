@@ -258,15 +258,25 @@ async def check_voice_channels():
 
 @tree.command(name="xp", description="Check your XP and Elo")
 async def xp(interaction: discord.Interaction):
-    user_id = str(interaction.user.id)
-    user_data = db.get_user_data(user_id)
-    
-    if user_data:
-        response_message = f'{interaction.user.name}, you have {user_data[1]} XP and are at level {user_data[2]} ({elo_name(user_data[2])})'
-    else:
-        response_message = f'{interaction.user.name}, you have no XP yet.'
-    
-    await interaction.response.send_message(response_message)
+    try:
+        await interaction.response.defer()  # Defer the response to avoid timeout
+        
+        user_id = str(interaction.user.id)
+        user_data = db.get_user_data(user_id)
+
+        if user_data:
+            response_message = f'{interaction.user.name}, you have {user_data[1]} XP and are at level {user_data[2]} ({elo_name(user_data[2])})'
+        else:
+            response_message = f'{interaction.user.name}, you have no XP yet.'
+
+        await interaction.followup.send(response_message)
+    except discord.errors.NotFound as e:
+        print(f"NotFound error: {e}")
+        await interaction.followup.send("An error occurred: Unknown interaction.", ephemeral=True)
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        await interaction.followup.send("An unexpected error occurred. Please try again later.", ephemeral=True)
+
 
 
 # Slash command to check voice chat time in minutes
