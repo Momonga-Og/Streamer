@@ -2,8 +2,10 @@ import os
 import sqlite3
 import discord
 from discord.ext import commands, tasks
+import asyncio
 
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+
 
 # Connect to the database (or create it if it doesn't exist)
 conn = sqlite3.connect('discord_bot.db')
@@ -87,6 +89,17 @@ async def assign_role(member, level):
         # Assign the new role
         await member.add_roles(role)
 
+# Function to announce level up
+async def announce_level_up(channel, member, level):
+    embed = discord.Embed(
+        title="🎉 Level Up! 🎉",
+        description=f"{member.mention} has reached **Level {level}**!",
+        color=discord.Color.gold()
+    )
+    embed.add_field(name="Elo", value=elo_name(level), inline=False)
+    embed.set_thumbnail(url=member.avatar_url)
+    await channel.send(embed=embed)
+
 # Bot setup
 intents = discord.Intents.default()
 intents.message_content = True
@@ -114,9 +127,9 @@ async def on_message(message):
     new_level = add_xp(user_id, 10)  # Add 10 XP per message
     user_data = get_user_data(user_id)
     
-    await assign_role(message.author, new_level)
-    
-    await message.channel.send(f'{message.author.name}, you have {user_data[1]} XP and are at level {user_data[2]} ({elo_name(user_data[2])})')
+    if new_level > user_data[2]:  # Check if user has leveled up
+        await assign_role(message.author, new_level)
+        await announce_level_up(message.channel, message.author, new_level)
     
     await bot.process_commands(message)
 
@@ -129,10 +142,9 @@ async def on_reaction_add(reaction, user):
     new_level = add_xp(user_id, 10)  # Add 10 XP per interaction
     user_data = get_user_data(user_id)
     
-    await assign_role(user, new_level)
-    
-    channel = reaction.message.channel
-    await channel.send(f'{user.name}, you have {user_data[1]} XP and are at level {user_data[2]} ({elo_name(user_data[2])})')
+    if new_level > user_data[2]:  # Check if user has leveled up
+        await assign_role(user, new_level)
+        await announce_level_up(reaction.message.channel, user, new_level)
 
 @bot.command()
 async def level(ctx):
@@ -157,10 +169,9 @@ async def on_voice_state_update(member, before, after):
             user_id = str(member.id)
             new_level = add_xp(user_id, int(time_spent / 3600 * 100))  # Add 100 XP per hour spent
             user_data = get_user_data(user_id)
-            await assign_role(member, new_level)
-            channel = before.channel
-            if channel:
-                await channel.send(f'{member.name}, you have {user_data[1]} XP and are at level {user_data[2]} ({elo_name(user_data[2])})')
+            if new_level > user_data[2]:  # Check if user has leveled up
+                await assign_role(member, new_level)
+                await announce_level_up(before.channel, member, new_level)
 
 @tasks.loop(minutes=1)
 async def check_voice_channels():
@@ -173,7 +184,10 @@ async def check_voice_channels():
             voice_states[member_id] = current_time
             member = discord.utils.get(bot.get_all_members(), id=int(member_id))
             if member:
-                await assign_role(member, new_level)
+                user_data = get_user_data(user_id)
+                if new_level > user_data[2]:  # Check if user has leveled up
+                    await assign_role(member, new_level)
+                    await announce_level_up(member.guild.system_channel, member, new_level)
 
 # Close the database connection on bot disconnect
 @bot.event
