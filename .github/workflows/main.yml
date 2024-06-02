@@ -24,11 +24,14 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
+    - name: Create database directory
+      run: mkdir -p data
+
     - name: Attempt to restore database
       uses: actions/download-artifact@v2
       with:
         name: discord_bot_db
-        path: discord_bot.db
+        path: data/
       continue-on-error: true
 
     - name: Run the bot
@@ -41,4 +44,4 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: discord_bot_db
-        path: discord_bot.db
+        path: data/discord_bot.db
