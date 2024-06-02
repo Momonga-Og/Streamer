@@ -12,10 +12,12 @@ DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 class Database:
     def __init__(self, db_name='data/discord_bot.db'):
         self.db_name = db_name
+        self.connect()
+
+    def connect(self):
         self.conn = sqlite3.connect(self.db_name)
         self.cursor = self.conn.cursor()
         self.create_table()
-        print(f"Database initialized at {os.path.abspath(self.db_name)}")
 
     def create_table(self):
         self.cursor.execute('''
@@ -33,6 +35,7 @@ class Database:
         self.conn.close()
 
     def add_xp(self, user_id, xp, time_spent=0):
+        self.connect()
         self.cursor.execute('SELECT xp, level, time_spent FROM users WHERE user_id = ?', (user_id,))
         user = self.cursor.fetchone()
 
@@ -48,15 +51,22 @@ class Database:
             self.cursor.execute('INSERT INTO users (user_id, xp, level, time_spent) VALUES (?, ?, ?, ?)', (user_id, new_xp, new_level, new_time_spent))
 
         self.conn.commit()
+        self.close()
         return new_level
 
     def get_user_data(self, user_id):
+        self.connect()
         self.cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))
-        return self.cursor.fetchone()
+        user_data = self.cursor.fetchone()
+        self.close()
+        return user_data
 
     def get_top_users(self, limit=10):
+        self.connect()
         self.cursor.execute('SELECT user_id, xp, level FROM users ORDER BY xp DESC LIMIT ?', (limit,))
-        return self.cursor.fetchall()
+        top_users = self.cursor.fetchall()
+        self.close()
+        return top_users
 
 # Initialize the database
 db = Database()
