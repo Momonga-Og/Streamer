@@ -2,6 +2,7 @@ import os
 import sqlite3
 import discord
 from discord.ext import commands, tasks
+from discord import app_commands
 import asyncio
 
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
@@ -97,7 +98,7 @@ async def announce_level_up(channel, member, level):
         color=discord.Color.gold()
     )
     embed.add_field(name="Elo", value=elo_name(level), inline=False)
-    embed.set_thumbnail(url=member.avatar_url)
+    embed.set_thumbnail(url=member.avatar.url)
     await channel.send(embed=embed)
 
 # Bot setup
@@ -107,6 +108,7 @@ intents.members = True
 intents.voice_states = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
+tree = bot.tree
 
 # Track voice state changes
 voice_states = {}
@@ -146,16 +148,6 @@ async def on_reaction_add(reaction, user):
         await assign_role(user, new_level)
         await announce_level_up(reaction.message.channel, user, new_level)
 
-@bot.command()
-async def level(ctx):
-    user_id = str(ctx.author.id)
-    user_data = get_user_data(user_id)
-    
-    if user_data:
-        await ctx.send(f'{ctx.author.name}, you have {user_data[1]} XP and are at level {user_data[2]} ({elo_name(user_data[2])})')
-    else:
-        await ctx.send(f'{ctx.author.name}, you have no XP yet.')
-
 @bot.event
 async def on_voice_state_update(member, before, after):
     if before.channel is None and after.channel is not None:
@@ -189,10 +181,38 @@ async def check_voice_channels():
                     await assign_role(member, new_level)
                     await announce_level_up(member.guild.system_channel, member, new_level)
 
+# Slash command to check XP and Elo
+@tree.command(name="xp", description="Check your XP and Elo")
+async def xp(interaction: discord.Interaction):
+    user_id = str(interaction.user.id)
+    user_data = get_user_data(user_id)
+    
+    if user_data:
+        await interaction.response.send_message(f'{interaction.user.name}, you have {user_data[1]} XP and are at level {user_data[2]} ({elo_name(user_data[2])})')
+    else:
+        await interaction.response.send_message(f'{interaction.user.name}, you have no XP yet.')
+
+# Slash command to check voice chat time
+@tree.command(name="vc", description="Check your time spent in voice chat")
+async def vc(interaction: discord.Interaction):
+    user_id = str(interaction.user.id)
+    user_data = get_user_data(user_id)
+    
+    if user_data:
+        time_spent_hours = user_data[3] / 3600  # Convert seconds to hours
+        await interaction.response.send_message(f'{interaction.user.name}, you have spent {time_spent_hours:.2f} hours in voice chat.')
+    else:
+        await interaction.response.send_message(f'{interaction.user.name}, you have no voice chat time recorded yet.')
+
+# Sync the commands with Discord
+@bot.event
+async def on_ready():
+    await bot.tree.sync()
+
 # Close the database connection on bot disconnect
 @bot.event
 async def on_disconnect():
     conn.close()
 
 # Add your bot token here
-bot.run(DISCORD_BOT_TOKEN)
+bot.run(os.getenv('DISCORD_BOT_TOKEN'))
