@@ -24,4 +24,8 @@ async def on_ready():
 welcome.setup(bot, config)
 pin_settings.setup(bot, config)
 
-bot.run(config['bot_token'])
+# Retrieve token from environment variable
+bot_token = os.getenv('DISCORD_BOT_TOKEN')
+
+# Run the bot with the token
+bot.run(bot_token)
