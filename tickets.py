@@ -1,10 +1,8 @@
 import discord
 from discord.ext import commands
 from discord import app_commands, ui
-import datetime
 import json
 import os
-import random
 
 class TicketView(ui.View):
     def __init__(self, bot):
@@ -72,11 +70,22 @@ class TicketView(ui.View):
 
         await interaction.response.send_message(f"Your ticket has been created: {ticket_channel.mention}", ephemeral=True)
 
-
 class TicketSystem(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.transcripts_path = "transcripts"  # Folder to store ticket transcripts
+        self.panel_message_id = None
+        self.load_panel_message_id()
+
+    def load_panel_message_id(self):
+        if os.path.exists('panel_message_id.json'):
+            with open('panel_message_id.json', 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                self.panel_message_id = data.get("panel_message_id")
+
+    def save_panel_message_id(self):
+        with open('panel_message_id.json', 'w', encoding='utf-8') as f:
+            json.dump({"panel_message_id": self.panel_message_id}, f, ensure_ascii=False, indent=4)
 
     @app_commands.command(name="panel", description="Create a new ticket panel")
     async def panel(self, interaction: discord.Interaction):
@@ -99,7 +108,9 @@ class TicketSystem(commands.Cog):
                         "لا يتم التسامح مع المخربين أو غير المُحترمين!",
             color=discord.Color.blue()
         )
-        await interaction.channel.send(embed=embed, view=TicketView(self.bot))
+        message = await interaction.channel.send(embed=embed, view=TicketView(self.bot))
+        self.panel_message_id = message.id
+        self.save_panel_message_id()
         await interaction.response.send_message("Ticket panel created.", ephemeral=True)
 
     @app_commands.command(name="close", description="Close an active ticket")
@@ -165,10 +176,74 @@ class TicketSystem(commands.Cog):
         await interaction.channel.send(f"{interaction.user.mention} has unlocked the ticket.")
         await interaction.response.send_message("You have unlocked this ticket.", ephemeral=True)
 
+    @app_commands.command(name="add", description="Add a user to the ticket")
+    @app_commands.describe(member="The member to add to the ticket")
+    async def add(self, interaction: discord.Interaction, member: discord.Member):
+        if not interaction.channel.name.startswith("ticket-"):
+            await interaction.response.send_message("This command can only be used in a ticket channel.", ephemeral=True)
+            return
+
+        await interaction.channel.set_permissions(member, read_messages=True)
+        await interaction.channel.send(f"{member.mention} has been added to the ticket.")
+        await interaction.response.send_message(f"{member.mention} has been added to the ticket.", ephemeral=True)
+
+    @app_commands.command(name="rename", description="Rename the ticket")
+    @app_commands.describe(new_name="The new name for the ticket")
+    async def rename(self, interaction: discord.Interaction, new_name: str):
+        if not interaction.channel.name.startswith("ticket-"):
+            await interaction.response.send_message("This command can only be used in a ticket channel.", ephemeral=True)
+            return
+
+        await interaction.channel.edit(name=new_name)
+        await interaction.channel.send(f"The ticket has been renamed to {new_name}.")
+        await interaction.response.send_message(f"The ticket has been renamed to {new_name}.", ephemeral=True)
+
     @app_commands.command(name="config", description="Configure the ticket system")
     async def config(self, interaction: discord.Interaction):
         embed = discord.Embed(title="Ticket System Configuration", description="Configure the ticket system here.", color=discord.Color.purple())
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
+    async def setup_panel(self):
+        await self.bot.wait_until_ready()
+        guild = discord.utils.get(self.bot.guilds)
+        if self.panel_message_id:
+            try:
+                channel = discord.utils.get(guild.text_channels, name="tickets")
+                if channel:
+                    message = await channel.fetch_message(self.panel_message_id)
+                    if message:
+                        self.bot.add_view(TicketView(self.bot), message_id=self.panel_message_id)
+            except discord.NotFound:
+                print("Panel message not found, creating a new one.")
+                await self.create_panel(guild)
+
+    async def create_panel(self, guild):
+        embed = discord.Embed(
+            title="الدعم الفني",
+            description="مرحبًا! مِن هُنا يُمكنكَ فتح تذكرة للتواصل مع الدعم الفني...\n\n"
+                        "︶ ︶︶︶ ︶︶︶ ︶︶︶\n"
+                        "تحذير ، أي تذكرة تم فتحها بدون سبب سيتم مُعاقبه صاحبها\n"
+                        "︶ ︶︶︶ ︶︶︶ ︶︶︶\n"
+                        "قسم الشكاوي العامة\n"
+                        "╭ㅤ୨ 🤔 ꒱﹒إذا كان لديك استفسار عن شيءٍ ما\n"
+                        "┊ㅤ୨ 🧞 ꒱﹒ لاقتراحات الديسكورد\n"
+                        "┊ㅤ୨ 🛠️ ꒱﹒إذا واجهتك مشكلة في سيرفر الديسكورد (الإعتراض علي ميوت - علي باند - مشاكل مع عضو مشكلة في بوت)\n"
+                        "╰ㅤ୨ ⚡ ꒱﹒إذا واجهتك مشكلة تطلب الإدارة العُليا - تريد من أحد مراجعة تقديمك - الاستفسارات بخصوص التقديم و آليه عمل الموقع والربح\n"
+                        "قسم الموقع\n"
+                        "╭ㅤ୨ 🤔 ꒱﹒استفسارات العضويات (شراء-تفعيل العضوية)\n"
+                        "┊ㅤ୨ 🌐 ꒱﹒إذا واجهتك مشكلة في الموقع (حسابك لا يعمل - الموقع لا يعمل - الخ)\n"
+                        "╰ㅤ୨ 💡 ꒱﹒للإدلاء باقتراح خطر ببالك لتطوير الموقع\n"
+                        "- مُلاحظة - يُرجى التحلي بالصبر عند فتح التذكرة!\n"
+                        "لا يتم التسامح مع المخربين أو غير المُحترمين!",
+            color=discord.Color.blue()
+        )
+        channel = discord.utils.get(guild.text_channels, name="tickets")
+        if channel:
+            message = await channel.send(embed=embed, view=TicketView(self.bot))
+            self.panel_message_id = message.id
+            self.save_panel_message_id()
+
 async def setup(bot):
-    await bot.add_cog(TicketSystem(bot))
+    ticket_system = TicketSystem(bot)
+    await bot.add_cog(ticket_system)
+    await ticket_system.setup_panel()
