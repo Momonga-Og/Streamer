@@ -87,8 +87,6 @@ def setup(bot, config):
         else:
             await interaction.response.send_message('No pinned messages.')
 
-    class PinSettings(commands.Cog):
-        def __init__(self, bot):
-            self.bot = bot
-
-    bot.add_cog(PinSettings(bot))
+class PinSettings(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
