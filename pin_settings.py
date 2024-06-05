@@ -81,4 +81,5 @@ def setup(bot, config):
         async def on_ready(self):
             await bot.tree.sync()
 
-    bot.add_cog(PinSettings(bot))
+    # Await the add_cog coroutine
+    bot.loop.create_task(bot.add_cog(PinSettings(bot)))
