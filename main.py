@@ -18,6 +18,7 @@ with open('config.json', 'r', encoding='utf-8') as f:
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user}')
+    await bot.tree.sync()  # Sync the command tree with Discord
 
 # Import functionalities
 welcome.setup(bot, config)
