@@ -92,12 +92,3 @@ def setup(bot, config):
             self.bot = bot
 
     bot.add_cog(PinSettings(bot))
-
-    # Sync the command tree with Discord when the cog is ready
-    @commands.Cog.listener()
-    async def on_ready(self):
-        await bot.tree.sync()
-
-# Ensure add_cog is awaited properly
-import asyncio
-asyncio.create_task(bot.add_cog(PinSettings(bot)))
