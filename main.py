@@ -26,6 +26,9 @@ class MyBot(commands.Bot):
         # Sync the command tree with Discord
         await self.tree.sync()
 
+        # Add cogs
+        await self.add_cog(pin_settings.PinSettings(self))
+
 bot = MyBot(command_prefix='!', intents=intents)
 
 @bot.event
