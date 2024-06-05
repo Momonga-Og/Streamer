@@ -36,13 +36,13 @@ class PinSettings(commands.Cog):
             await interaction.response.send_message(f'Channel {channel_name} not found.')
 
     @app_commands.command(name='pin-multi', description='Pin a specific message in multiple channels')
-    @app_commands.describe(message_id='The ID of the message to pin', channel_names='The names of the channels to pin the message in')
+    @app_commands.describe(message_id='The ID of the message to pin', channel_names='The names of the channels to pin the message in, or "all" to pin in all channels')
     async def pin_multi(self, interaction: discord.Interaction, message_id: str, channel_names: str):
-        channel_list = channel_names.split()
-        channels = []
-        if 'all' in channel_list:
+        if channel_names.lower() == 'all':
             channels = interaction.guild.text_channels
         else:
+            channel_list = channel_names.split()
+            channels = []
             for channel_name in channel_list:
                 channel = discord.utils.get(interaction.guild.text_channels, name=channel_name)
                 if channel:
