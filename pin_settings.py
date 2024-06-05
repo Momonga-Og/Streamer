@@ -9,6 +9,9 @@ class PinSettings(commands.Cog):
     @app_commands.command(name='pin', description='Pin a specific message in a channel')
     @app_commands.describe(message_id='The ID of the message to pin', channel_name='The name of the channel to pin the message in')
     async def pin(self, interaction: discord.Interaction, message_id: str, channel_name: str):
+        # Respond immediately to avoid interaction expiration
+        await interaction.response.defer(ephemeral=True)
+
         # Find the specified channel by name
         channel = discord.utils.get(interaction.guild.text_channels, name=channel_name)
         
@@ -21,24 +24,27 @@ class PinSettings(commands.Cog):
                 new_message = await channel.send(message.content)
                 await new_message.pin()
                 
-                # Send a response indicating success
-                await interaction.response.send_message(f'Message {message_id} pinned in {channel_name}.', ephemeral=True)
+                # Follow up with a response indicating success
+                await interaction.followup.send(f'Message {message_id} pinned in {channel_name}.', ephemeral=True)
             except discord.NotFound:
-                # Send a response if the message was not found
-                await interaction.response.send_message(f'Message {message_id} not found.', ephemeral=True)
+                # Follow up with a response if the message was not found
+                await interaction.followup.send(f'Message {message_id} not found.', ephemeral=True)
             except discord.Forbidden:
-                # Send a response if the bot does not have permission to pin messages
-                await interaction.response.send_message('I do not have permission to pin messages.', ephemeral=True)
+                # Follow up with a response if the bot does not have permission to pin messages
+                await interaction.followup.send('I do not have permission to pin messages.', ephemeral=True)
             except discord.HTTPException as e:
-                # Send a response if there was an HTTP error
-                await interaction.response.send_message(f'Failed to pin message: {e}', ephemeral=True)
+                # Follow up with a response if there was an HTTP error
+                await interaction.followup.send(f'Failed to pin message: {e}', ephemeral=True)
         else:
-            # Send a response if the specified channel was not found
-            await interaction.response.send_message(f'Channel {channel_name} not found.', ephemeral=True)
+            # Follow up with a response if the specified channel was not found
+            await interaction.followup.send(f'Channel {channel_name} not found.', ephemeral=True)
 
     @app_commands.command(name='pin-multi', description='Pin a specific message in multiple channels')
     @app_commands.describe(message_id='The ID of the message to pin', channel_names='The names of the channels to pin the message in, or "all" to pin in all channels')
     async def pin_multi(self, interaction: discord.Interaction, message_id: str, channel_names: str):
+        # Respond immediately to avoid interaction expiration
+        await interaction.response.defer(ephemeral=True)
+
         if channel_names.lower() == 'all':
             channels = interaction.guild.text_channels
         else:
@@ -74,28 +80,34 @@ class PinSettings(commands.Cog):
     @app_commands.command(name='unpin', description='Unpin a specific message in the current channel')
     @app_commands.describe(message_id='The ID of the message to unpin')
     async def unpin(self, interaction: discord.Interaction, message_id: str):
+        # Respond immediately to avoid interaction expiration
+        await interaction.response.defer(ephemeral=True)
+
         try:
             message = await interaction.channel.fetch_message(int(message_id))
             await message.unpin()
-            await interaction.response.send_message(f'Message {message_id} unpinned.', ephemeral=True)
+            await interaction.followup.send(f'Message {message_id} unpinned.', ephemeral=True)
         except discord.NotFound:
-            await interaction.response.send_message(f'Message {message_id} not found.', ephemeral=True)
+            await interaction.followup.send(f'Message {message_id} not found.', ephemeral=True)
         except discord.Forbidden:
-            await interaction.response.send_message('I do not have permission to unpin messages.', ephemeral=True)
+            await interaction.followup.send('I do not have permission to unpin messages.', ephemeral=True)
         except discord.HTTPException as e:
-            await interaction.response.send_message(f'Failed to unpin message: {e}', ephemeral=True)
+            await interaction.followup.send(f'Failed to unpin message: {e}', ephemeral=True)
 
     @app_commands.command(name='listpins', description='List all currently pinned messages in the channel')
     async def listpins(self, interaction: discord.Interaction):
+        # Respond immediately to avoid interaction expiration
+        await interaction.response.defer(ephemeral=True)
+
         try:
             pins = await interaction.channel.pins()
             if pins:
                 pin_list = '\n'.join([f"{pin.id}: {pin.content}" for pin in pins])
-                await interaction.response.send_message(f'Pinned messages:\n{pin_list}', ephemeral=True)
+                await interaction.followup.send(f'Pinned messages:\n{pin_list}', ephemeral=True)
             else:
-                await interaction.response.send_message('No pinned messages.', ephemeral=True)
+                await interaction.followup.send('No pinned messages.', ephemeral=True)
         except discord.HTTPException as e:
-            await interaction.response.send_message(f'Failed to list pinned messages: {e}', ephemeral=True)
+            await interaction.followup.send(f'Failed to list pinned messages: {e}', ephemeral=True)
 
 async def setup(bot, config):
     await bot.add_cog(PinSettings(bot))
