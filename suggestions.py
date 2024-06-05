@@ -1,0 +1,37 @@
+import discord
+from discord.ext import commands
+from discord import app_commands
+
+class Suggestions(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    @app_commands.command(name='suggest', description='Submit a suggestion')
+    @app_commands.describe(suggestion='The suggestion text')
+    async def suggest(self, interaction: discord.Interaction, suggestion: str):
+        # Find the suggestions channel by name
+        suggestions_channel = discord.utils.get(interaction.guild.text_channels, name='suggestions')
+
+        if suggestions_channel:
+            try:
+                # Send the suggestion as a new message in the suggestions channel
+                suggestion_message = await suggestions_channel.send(f"Suggestion by {interaction.user.mention}:\n\n{suggestion}")
+
+                # Add thumbs up and thumbs down reactions to the message
+                await suggestion_message.add_reaction('👍')
+                await suggestion_message.add_reaction('👎')
+
+                # Respond to the user that the suggestion was submitted
+                await interaction.response.send_message(f'Your suggestion has been submitted in {suggestions_channel.mention}.', ephemeral=True)
+            except discord.Forbidden:
+                # Send a response if the bot does not have permission to send messages or add reactions
+                await interaction.response.send_message('I do not have permission to send messages or add reactions in the suggestions channel.', ephemeral=True)
+            except discord.HTTPException as e:
+                # Send a response if there was an HTTP error
+                await interaction.response.send_message(f'Failed to submit suggestion: {e}', ephemeral=True)
+        else:
+            # Send a response if the suggestions channel was not found
+            await interaction.response.send_message('Suggestions channel not found.', ephemeral=True)
+
+async def setup(bot):
+    await bot.add_cog(Suggestions(bot))
