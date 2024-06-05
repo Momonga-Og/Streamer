@@ -7,6 +7,7 @@ on:
 
 jobs:
   build:
+
     runs-on: ubuntu-latest
 
     steps:
@@ -23,38 +24,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Create database directory
-      run: mkdir -p data
-
-    - name: Attempt to restore database
-      id: download_db
-      uses: actions/download-artifact@v2
-      with:
-        name: discord_bot_db
-        path: data/
-      continue-on-error: true
-
-    - name: Check if database was downloaded
-      run: |
-        if [ ! -f data/discord_bot.db ]; then
-          echo "Database not found, creating a new one."
-          touch data/discord_bot.db
-        fi
-
-    - name: List files in data directory after download
-      run: ls -la data
 
     - name: Run the bot
       env:
         DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
       run: python main.py
-
-    - name: List files in data directory before upload
-      run: ls -la data
-
-    - name: Save database
-      if: always()  # This ensures the step runs even if previous steps fail
-      uses: actions/upload-artifact@v2
-      with:
-        name: discord_bot_db
-        path: data/discord_bot.db
