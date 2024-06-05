@@ -6,25 +6,36 @@ def setup(bot, config):
 
     @bot.tree.command(name='pin', description='Pin a specific message in a channel')
     @app_commands.describe(message_id='The ID of the message to pin', channel_name='The name of the channel to pin the message in')
-    async def pin(interaction: discord.Interaction, message_id: int, channel_name: str):
+    async def pin(interaction: discord.Interaction, message_id: str, channel_name: str):
+        # Find the specified channel by name
         channel = discord.utils.get(interaction.guild.text_channels, name=channel_name)
+        
         if channel:
             try:
-                message = await channel.fetch_message(message_id)
+                # Fetch the specified message by ID from the specified channel
+                message = await channel.fetch_message(int(message_id))
+                
+                # Pin the fetched message
                 await message.pin()
+                
+                # Send a response indicating success
                 await interaction.response.send_message(f'Message {message_id} pinned in {channel_name}.')
             except discord.NotFound:
+                # Send a response if the message was not found
                 await interaction.response.send_message(f'Message {message_id} not found.')
             except discord.Forbidden:
+                # Send a response if the bot does not have permission to pin messages
                 await interaction.response.send_message('I do not have permission to pin messages.')
             except discord.HTTPException as e:
+                # Send a response if there was an HTTP error
                 await interaction.response.send_message(f'Failed to pin message: {e}')
         else:
+            # Send a response if the specified channel was not found
             await interaction.response.send_message(f'Channel {channel_name} not found.')
 
     @bot.tree.command(name='pin-multi', description='Pin a specific message in multiple channels')
     @app_commands.describe(message_id='The ID of the message to pin', channel_names='The names of the channels to pin the message in')
-    async def pin_multi(interaction: discord.Interaction, message_id: int, channel_names: str):
+    async def pin_multi(interaction: discord.Interaction, message_id: str, channel_names: str):
         channel_list = channel_names.split()
         channels = []
         if 'all' in channel_list:
@@ -40,7 +51,7 @@ def setup(bot, config):
         
         for channel in channels:
             try:
-                message = await channel.fetch_message(message_id)
+                message = await channel.fetch_message(int(message_id))
                 await message.pin()
                 await interaction.response.send_message(f'Message {message_id} pinned in {channel.name}.')
             except discord.NotFound:
@@ -52,9 +63,9 @@ def setup(bot, config):
 
     @bot.tree.command(name='unpin', description='Unpin a specific message in the current channel')
     @app_commands.describe(message_id='The ID of the message to unpin')
-    async def unpin(interaction: discord.Interaction, message_id: int):
+    async def unpin(interaction: discord.Interaction, message_id: str):
         try:
-            message = await interaction.channel.fetch_message(message_id)
+            message = await interaction.channel.fetch_message(int(message_id))
             await message.unpin()
             await interaction.response.send_message(f'Message {message_id} unpinned.')
         except discord.NotFound:
