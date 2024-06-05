@@ -46,8 +46,8 @@ def setup(bot, config):
                 if channel:
                     channels.append(channel)
                 else:
-                    await interaction.response.send_message(f'Channel {channel_name} not found.')
-                    return
+                    await interaction.followup.send(f'Channel {channel_name} not found.', ephemeral=True)
+                    continue
         
         responses = []
         for channel in channels:
@@ -97,3 +97,7 @@ def setup(bot, config):
     @commands.Cog.listener()
     async def on_ready(self):
         await bot.tree.sync()
+
+# Ensure add_cog is awaited properly
+import asyncio
+asyncio.create_task(bot.add_cog(PinSettings(bot)))
