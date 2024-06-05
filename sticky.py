@@ -9,7 +9,6 @@ class StickyMessages(commands.Cog):
         self.bot = bot
         self.stickies = {}
         self.load_stickies()
-        self.sticky_task.start()
 
     def load_stickies(self):
         if os.path.exists('stickies.json'):
@@ -25,7 +24,12 @@ class StickyMessages(commands.Cog):
     async def stick(self, interaction: discord.Interaction, message: str):
         """Sticks your message to the channel."""
         channel_id = str(interaction.channel.id)
-        self.stickies[channel_id] = {"message": message, "active": True, "message_id": None}
+        if channel_id in self.stickies:
+            self.stickies[channel_id]["message"] = message
+            self.stickies[channel_id]["active"] = True
+        else:
+            self.stickies[channel_id] = {"message": message, "active": True, "message_id": None}
+
         self.save_stickies()
         await interaction.response.send_message(f"Sticky message set: {message}")
 
@@ -86,6 +90,7 @@ class StickyMessages(commands.Cog):
     async def post_sticky(self, channel):
         sticky_info = self.stickies.get(str(channel.id))
         if sticky_info and sticky_info["active"]:
+            # Delete previous sticky message if it exists
             if sticky_info["message_id"]:
                 try:
                     prev_message = await channel.fetch_message(sticky_info["message_id"])
@@ -93,21 +98,10 @@ class StickyMessages(commands.Cog):
                 except discord.NotFound:
                     pass
 
+            # Send new sticky message
             sent_message = await channel.send(sticky_info["message"])
             sticky_info["message_id"] = sent_message.id
             self.save_stickies()
-
-    @tasks.loop(seconds=60)
-    async def sticky_task(self):
-        for channel_id, info in self.stickies.items():
-            if info["active"]:
-                channel = self.bot.get_channel(int(channel_id))
-                if channel:
-                    await self.post_sticky(channel)
-
-    @sticky_task.before_loop
-    async def before_sticky_task(self):
-        await self.bot.wait_until_ready()
 
 async def setup(bot):
     await bot.add_cog(StickyMessages(bot))
