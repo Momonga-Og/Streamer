@@ -51,4 +51,4 @@ async def on_member_join(member):
         print('Welcome channel not found.')
 
 # Run the bot with your token from the configuration file
-bot.run(config['bot_token'])
+bot.run(os.getenv('DISCORD_BOT_TOKEN'))
