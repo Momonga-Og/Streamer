@@ -25,7 +25,7 @@ class StickyMessages(commands.Cog):
     async def stick(self, interaction: discord.Interaction, message: str):
         """Sticks your message to the channel."""
         channel_id = str(interaction.channel.id)
-        self.stickies[channel_id] = {"message": message, "active": True}
+        self.stickies[channel_id] = {"message": message, "active": True, "message_id": None}
         self.save_stickies()
         await interaction.response.send_message(f"Sticky message set: {message}")
 
@@ -86,10 +86,16 @@ class StickyMessages(commands.Cog):
     async def post_sticky(self, channel):
         sticky_info = self.stickies.get(str(channel.id))
         if sticky_info and sticky_info["active"]:
-            async for msg in channel.history(limit=10):
-                if msg.author == self.bot.user and msg.content == sticky_info["message"]:
-                    await msg.delete()
-            await channel.send(sticky_info["message"])
+            if sticky_info["message_id"]:
+                try:
+                    prev_message = await channel.fetch_message(sticky_info["message_id"])
+                    await prev_message.delete()
+                except discord.NotFound:
+                    pass
+
+            sent_message = await channel.send(sticky_info["message"])
+            sticky_info["message_id"] = sent_message.id
+            self.save_stickies()
 
     @tasks.loop(seconds=60)
     async def sticky_task(self):
