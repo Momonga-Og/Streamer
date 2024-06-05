@@ -29,6 +29,8 @@ class StickyMessages(commands.Cog):
         self.save_stickies()
         await interaction.response.send_message(f"Sticky message set: {message}")
 
+        await self.post_sticky(interaction.channel)
+
     @app_commands.command(name="stickstop", description="Stop the current sticky message in the channel")
     async def stickstop(self, interaction: discord.Interaction):
         """Stops the current sticky in the channel."""
@@ -48,6 +50,7 @@ class StickyMessages(commands.Cog):
             self.stickies[channel_id]["active"] = True
             self.save_stickies()
             await interaction.response.send_message("Sticky message restarted.")
+            await self.post_sticky(interaction.channel)
         else:
             await interaction.response.send_message("No stopped sticky message to restart in this channel.")
 
@@ -71,13 +74,30 @@ class StickyMessages(commands.Cog):
         else:
             await interaction.response.send_message("No active stickies in the server.")
 
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        if message.author.bot:
+            return
+
+        channel_id = str(message.channel.id)
+        if channel_id in self.stickies and self.stickies[channel_id]["active"]:
+            await self.post_sticky(message.channel)
+
+    async def post_sticky(self, channel):
+        sticky_info = self.stickies.get(str(channel.id))
+        if sticky_info and sticky_info["active"]:
+            async for msg in channel.history(limit=10):
+                if msg.author == self.bot.user and msg.content == sticky_info["message"]:
+                    await msg.delete()
+            await channel.send(sticky_info["message"])
+
     @tasks.loop(seconds=60)
     async def sticky_task(self):
         for channel_id, info in self.stickies.items():
             if info["active"]:
                 channel = self.bot.get_channel(int(channel_id))
                 if channel:
-                    await channel.send(info["message"])
+                    await self.post_sticky(channel)
 
     @sticky_task.before_loop
     async def before_sticky_task(self):
