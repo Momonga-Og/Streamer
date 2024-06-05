@@ -21,13 +21,10 @@ class MyBot(commands.Bot):
 
         # Import functionalities
         welcome.setup(self, self.config)
-        pin_settings.setup(self, self.config)
+        await pin_settings.setup(self, self.config)
 
         # Sync the command tree with Discord
         await self.tree.sync()
-
-        # Add cogs
-        await self.add_cog(pin_settings.PinSettings(self))
 
 bot = MyBot(command_prefix='!', intents=intents)
 
