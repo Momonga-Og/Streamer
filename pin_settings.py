@@ -49,17 +49,20 @@ def setup(bot, config):
                     await interaction.response.send_message(f'Channel {channel_name} not found.')
                     return
         
+        responses = []
         for channel in channels:
             try:
                 message = await channel.fetch_message(int(message_id))
                 await message.pin()
-                await interaction.response.send_message(f'Message {message_id} pinned in {channel.name}.')
+                responses.append(f'Message {message_id} pinned in {channel.name}.')
             except discord.NotFound:
-                await interaction.response.send_message(f'Message {message_id} not found in {channel.name}.')
+                responses.append(f'Message {message_id} not found in {channel.name}.')
             except discord.Forbidden:
-                await interaction.response.send_message(f'I do not have permission to pin messages in {channel.name}.')
+                responses.append(f'I do not have permission to pin messages in {channel.name}.')
             except discord.HTTPException as e:
-                await interaction.response.send_message(f'Failed to pin message in {channel.name}: {e}')
+                responses.append(f'Failed to pin message in {channel.name}: {e}')
+        
+        await interaction.response.send_message('\n'.join(responses))
 
     @bot.tree.command(name='unpin', description='Unpin a specific message in the current channel')
     @app_commands.describe(message_id='The ID of the message to unpin')
