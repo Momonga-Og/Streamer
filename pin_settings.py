@@ -14,11 +14,12 @@ class PinSettings(commands.Cog):
         
         if channel:
             try:
-                # Fetch the specified message by ID from the specified channel
-                message = await channel.fetch_message(int(message_id))
+                # Fetch the specified message by ID from the current channel
+                message = await interaction.channel.fetch_message(int(message_id))
                 
-                # Pin the fetched message
-                await message.pin()
+                # Send the message content as a new message in the target channel and pin it
+                new_message = await channel.send(message.content)
+                await new_message.pin()
                 
                 # Send a response indicating success
                 await interaction.response.send_message(f'Message {message_id} pinned in {channel_name}.')
@@ -52,17 +53,21 @@ class PinSettings(commands.Cog):
                     continue
         
         responses = []
-        for channel in channels:
-            try:
-                message = await channel.fetch_message(int(message_id))
-                await message.pin()
-                responses.append(f'Message {message_id} pinned in {channel.name}.')
-            except discord.NotFound:
-                responses.append(f'Message {message_id} not found in {channel.name}.')
-            except discord.Forbidden:
-                responses.append(f'I do not have permission to pin messages in {channel.name}.')
-            except discord.HTTPException as e:
-                responses.append(f'Failed to pin message in {channel.name}: {e}')
+        try:
+            # Fetch the specified message by ID from the current channel
+            message = await interaction.channel.fetch_message(int(message_id))
+            for channel in channels:
+                try:
+                    # Send the message content as a new message in each target channel and pin it
+                    new_message = await channel.send(message.content)
+                    await new_message.pin()
+                    responses.append(f'Message {message_id} pinned in {channel.name}.')
+                except discord.Forbidden:
+                    responses.append(f'I do not have permission to pin messages in {channel.name}.')
+                except discord.HTTPException as e:
+                    responses.append(f'Failed to pin message in {channel.name}: {e}')
+        except discord.NotFound:
+            responses.append(f'Message {message_id} not found in the current channel.')
         
         await interaction.response.send_message('\n'.join(responses))
 
