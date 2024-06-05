@@ -54,9 +54,12 @@ class TicketView(ui.View):
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(read_messages=False),
             user: discord.PermissionOverwrite(read_messages=True),
-            guild.me: discord.PermissionOverwrite(read_messages=True),
-            discord.utils.get(guild.roles, name="Admin"): discord.PermissionOverwrite(read_messages=True)
+            guild.me: discord.PermissionOverwrite(read_messages=True)
         }
+
+        admin_role = discord.utils.get(guild.roles, name="Admin")
+        if admin_role:
+            overwrites[admin_role] = discord.PermissionOverwrite(read_messages=True)
 
         ticket_channel = await guild.create_text_channel(channel_name, overwrites=overwrites)
 
@@ -64,7 +67,6 @@ class TicketView(ui.View):
         await ticket_channel.send(f"Welcome {user.mention}! How can we help you with {category}?")
 
         # Notify admins about the new ticket
-        admin_role = discord.utils.get(guild.roles, name="Admin")  # Change this to your admin role
         if admin_role:
             await ticket_channel.send(f"{admin_role.mention}, a new ticket has been created by {user.mention}.")
 
