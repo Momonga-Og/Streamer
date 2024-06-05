@@ -1,5 +1,7 @@
 {
+    "bot_token": "YOUR_BOT_TOKEN",
     "welcome_message": "مرحبًا بك في ثاندر",
+    "welcome_image": "welcome_image.jpg",
     "channels": [
         {
             "description": "لقراءة القوانين ستجدها هُنا",
