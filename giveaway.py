@@ -13,7 +13,11 @@ class Giveaway(commands.Cog):
     @app_commands.describe(duration='Duration of the giveaway in minutes', prize='The prize for the giveaway')
     async def start_giveaway(self, interaction: discord.Interaction, duration: int, prize: str):
         end_time = datetime.datetime.utcnow() + datetime.timedelta(minutes=duration)
-        giveaway_message = await interaction.channel.send(f"🎉 **Giveaway Started!** 🎉\nPrize: {prize}\nReact with 🎉 to enter!\nEnds at: {end_time} UTC")
+        embed = discord.Embed(title="🎉 **Giveaway Started!** 🎉", description=f"**Prize**: {prize}\n\nReact with 🎉 to enter!\n\n**Ends at**: {end_time.strftime('%Y-%m-%d %H:%M:%S')} UTC", color=discord.Color.blue())
+        embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/762387665989091348/871290592215195648/giveaway.png")
+        embed.set_footer(text="Good luck!")
+        
+        giveaway_message = await interaction.channel.send(embed=embed)
         await giveaway_message.add_reaction('🎉')
         
         self.active_giveaways[giveaway_message.id] = {
@@ -35,12 +39,15 @@ class Giveaway(commands.Cog):
             message = giveaway['message']
             
             message = await channel.fetch_message(message.id)
-            users = await message.reactions[0].users().flatten()
-            users = [user for user in users if not user.bot]
+            users = [user async for user in message.reactions[0].users() if not user.bot]
             
             if users:
                 winner = random.choice(users)
-                await channel.send(f"🎉 Congratulations {winner.mention}! You won the prize: {giveaway['prize']} 🎉")
+                await channel.send(f"🎉 Congratulations {winner.mention}! You won the prize: **{giveaway['prize']}** 🎉")
+                try:
+                    await winner.send(f"🎉 Congratulations! You won the prize: **{giveaway['prize']}** in the giveaway! 🎉")
+                except discord.Forbidden:
+                    await channel.send(f"Couldn't send a private message to {winner.mention}.")
             else:
                 await channel.send("No valid entries, no winner could be determined.")
             
