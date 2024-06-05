@@ -6,6 +6,7 @@ import welcome
 import pin_settings
 import suggestions
 import voting
+import giveaway
 
 intents = discord.Intents.default()
 intents.members = True
@@ -26,6 +27,7 @@ class MyBot(commands.Bot):
         await pin_settings.setup(self, self.config)
         await suggestions.setup(self)
         await voting.setup(self)
+        await giveaway.setup(self)
 
         # Sync the command tree with Discord
         await self.tree.sync()
