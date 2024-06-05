@@ -19,25 +19,26 @@ async def on_ready():
 
 @bot.event
 async def on_member_join(member):
-    # Debugging statement
     print(f'Member joined: {member.name}')
     
-    # Look for the welcome channel
     channel = discord.utils.get(member.guild.text_channels, name='welcome')
     
     if channel:
         print(f'Found welcome channel: {channel.name}')
         
         try:
-            # Open the welcome image
             with open(config['welcome_image'], 'rb') as f:
                 picture = File(f)
 
                 # Build the welcome message
                 message = f"{config['welcome_message']}\n╰ ╮・ ┈ ┈ ┈ ┈ ┈ ┈ ┈ ┈ ↓ ↓\n"
-                message += "╭ ╯ㅤ@𝖈𝖍𝖆𝖔𝖘\n— — — — —  — — — —\n"
+                message += f"╭ ╯ㅤ{member.mention}\n— — — — —  — — — —\n"
                 for ch in config['channels']:
-                    message += f"📖 ⨯ ・{ch['description']} ⁠«{ch['channel']}»\n"
+                    channel_obj = discord.utils.get(member.guild.text_channels, name=ch['channel'])
+                    if channel_obj:
+                        message += f"📖 ⨯ ・{ch['description']} ⁠«{channel_obj.mention}»\n"
+                    else:
+                        message += f"📖 ⨯ ・{ch['description']} ⁠«{ch['channel']}»\n"
                 message += "— — — — —  — — — —\n"
                 message += f"⊹ ˚. 🌟┊⢀ ₊ ˚ ღ ˚. 🌍 ┊・ ˚.\n˚. ┊・ ⊹ ₊ ˚{config['footer']} ღ ˚. 🌠 ┊・"
 
@@ -50,5 +51,4 @@ async def on_member_join(member):
     else:
         print('Welcome channel not found.')
 
-# Run the bot with your token from the configuration file
 bot.run(os.getenv('DISCORD_BOT_TOKEN'))
