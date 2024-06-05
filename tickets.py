@@ -1,8 +1,10 @@
 import discord
 from discord.ext import commands
 from discord import app_commands, ui
+import datetime
 import json
 import os
+import random
 
 class TicketView(ui.View):
     def __init__(self, bot):
@@ -38,14 +40,13 @@ class TicketView(ui.View):
         await self.create_ticket(interaction, "اقتراحات الموقع")
 
     async def create_ticket(self, interaction: discord.Interaction, category: str):
-        # Create a private channel
         guild = interaction.guild
         user = interaction.user
-        category_name = f"{category}-{user.name}"
+        channel_name = f"ticket-{category}-{user.name}".replace(" ", "-")
 
         # Check if the user already has an open ticket
         for channel in guild.channels:
-            if channel.name == category_name:
+            if channel.name == channel_name:
                 await interaction.response.send_message("You already have an open ticket.", ephemeral=True)
                 return
 
@@ -54,10 +55,10 @@ class TicketView(ui.View):
             guild.default_role: discord.PermissionOverwrite(read_messages=False),
             user: discord.PermissionOverwrite(read_messages=True),
             guild.me: discord.PermissionOverwrite(read_messages=True),
-            # Add any admin roles here with permissions
+            discord.utils.get(guild.roles, name="Admin"): discord.PermissionOverwrite(read_messages=True)
         }
 
-        ticket_channel = await guild.create_text_channel(category_name, overwrites=overwrites)
+        ticket_channel = await guild.create_text_channel(channel_name, overwrites=overwrites)
 
         # Send a welcome message in the new channel
         await ticket_channel.send(f"Welcome {user.mention}! How can we help you with {category}?")
@@ -73,16 +74,99 @@ class TicketView(ui.View):
 class TicketSystem(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.config = {}
+        self.transcripts_path = "transcripts"  # Folder to store ticket transcripts
 
-    @commands.command(name="setup_ticket_message")
-    async def setup_ticket_message(self, ctx: commands.Context):
-        embed = discord.Embed(title="الدعم الفني", description="مرحبًا! مِن هُنا يُمكنكَ فتح تذكرة للتواصل مع الدعم الفني...", color=discord.Color.blue())
-        await ctx.send(embed=embed, view=TicketView(self.bot))
+    @app_commands.command(name="panel", description="Create a new ticket panel")
+    async def panel(self, interaction: discord.Interaction):
+        embed = discord.Embed(
+            title="الدعم الفني",
+            description="مرحبًا! مِن هُنا يُمكنكَ فتح تذكرة للتواصل مع الدعم الفني...\n\n"
+                        "︶ ︶︶︶ ︶︶︶ ︶︶︶\n"
+                        "تحذير ، أي تذكرة تم فتحها بدون سبب سيتم مُعاقبه صاحبها\n"
+                        "︶ ︶︶︶ ︶︶︶ ︶︶︶\n"
+                        "قسم الشكاوي العامة\n"
+                        "╭ㅤ୨ 🤔 ꒱﹒إذا كان لديك استفسار عن شيءٍ ما\n"
+                        "┊ㅤ୨ 🧞 ꒱﹒ لاقتراحات الديسكورد\n"
+                        "┊ㅤ୨ 🛠️ ꒱﹒إذا واجهتك مشكلة في سيرفر الديسكورد (الإعتراض علي ميوت - علي باند - مشاكل مع عضو مشكلة في بوت)\n"
+                        "╰ㅤ୨ ⚡ ꒱﹒إذا واجهتك مشكلة تطلب الإدارة العُليا - تريد من أحد مراجعة تقديمك - الاستفسارات بخصوص التقديم و آليه عمل الموقع والربح\n"
+                        "قسم الموقع\n"
+                        "╭ㅤ୨ 🤔 ꒱﹒استفسارات العضويات (شراء-تفعيل العضوية)\n"
+                        "┊ㅤ୨ 🌐 ꒱﹒إذا واجهتك مشكلة في الموقع (حسابك لا يعمل - الموقع لا يعمل - الخ)\n"
+                        "╰ㅤ୨ 💡 ꒱﹒للإدلاء باقتراح خطر ببالك لتطوير الموقع\n"
+                        "- مُلاحظة - يُرجى التحلي بالصبر عند فتح التذكرة!\n"
+                        "لا يتم التسامح مع المخربين أو غير المُحترمين!",
+            color=discord.Color.blue()
+        )
+        await interaction.channel.send(embed=embed, view=TicketView(self.bot))
+        await interaction.response.send_message("Ticket panel created.", ephemeral=True)
 
-    @app_commands.command(name="config_ticket", description="Configure the ticket system")
-    async def config_ticket(self, interaction: discord.Interaction):
-        await interaction.response.send_message("Configure the ticket system here.", ephemeral=True)
+    @app_commands.command(name="close", description="Close an active ticket")
+    async def close(self, interaction: discord.Interaction):
+        if not interaction.channel.name.startswith("ticket-"):
+            await interaction.response.send_message("This command can only be used in a ticket channel.", ephemeral=True)
+            return
+
+        user = interaction.user
+        transcript = []
+        async for message in interaction.channel.history(limit=None, oldest_first=True):
+            timestamp = message.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            transcript.append(f"[{timestamp}] {message.author.display_name}: {message.content}")
+
+        transcript_path = os.path.join(self.transcripts_path, f"{interaction.channel.name}.txt")
+        os.makedirs(self.transcripts_path, exist_ok=True)
+        with open(transcript_path, 'w', encoding='utf-8') as f:
+            f.write("\n".join(transcript))
+
+        await interaction.channel.send(f"The ticket has been closed by {user.mention}. Transcript saved.")
+        await interaction.response.send_message(f"Ticket closed and transcript saved: {transcript_path}", ephemeral=True)
+        await interaction.channel.delete()
+
+    @app_commands.command(name="ticket", description="Displays information and options for in-ticket management")
+    async def ticket(self, interaction: discord.Interaction):
+        embed = discord.Embed(title="Ticket Management", description="Options for managing this ticket.", color=discord.Color.green())
+        embed.add_field(name="/claim", value="Claim the current ticket.", inline=False)
+        embed.add_field(name="/lock", value="Lock the ticket and disallow the user to view the channel.", inline=False)
+        embed.add_field(name="/unlock", value="Unlock the ticket and allow the user to view the channel.", inline=False)
+        embed.add_field(name="/close", value="Close the ticket and save the transcript.", inline=False)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(name="claim", description="Claim the current ticket")
+    async def claim(self, interaction: discord.Interaction):
+        if not interaction.channel.name.startswith("ticket-"):
+            await interaction.response.send_message("This command can only be used in a ticket channel.", ephemeral=True)
+            return
+
+        await interaction.channel.send(f"{interaction.user.mention} has claimed this ticket.")
+        await interaction.response.send_message("You have claimed this ticket.", ephemeral=True)
+
+    @app_commands.command(name="lock", description="Lock the ticket and disallow the user to view the channel")
+    async def lock(self, interaction: discord.Interaction):
+        if not interaction.channel.name.startswith("ticket-"):
+            await interaction.response.send_message("This command can only be used in a ticket channel.", ephemeral=True)
+            return
+
+        user = interaction.channel.overwrites_for(interaction.user)
+        user.read_messages = False
+        await interaction.channel.set_permissions(interaction.user, overwrite=user)
+        await interaction.channel.send(f"{interaction.user.mention} has locked the ticket.")
+        await interaction.response.send_message("You have locked this ticket.", ephemeral=True)
+
+    @app_commands.command(name="unlock", description="Unlock the ticket and allow the user to view the channel")
+    async def unlock(self, interaction: discord.Interaction):
+        if not interaction.channel.name.startswith("ticket-"):
+            await interaction.response.send_message("This command can only be used in a ticket channel.", ephemeral=True)
+            return
+
+        user = interaction.channel.overwrites_for(interaction.user)
+        user.read_messages = True
+        await interaction.channel.set_permissions(interaction.user, overwrite=user)
+        await interaction.channel.send(f"{interaction.user.mention} has unlocked the ticket.")
+        await interaction.response.send_message("You have unlocked this ticket.", ephemeral=True)
+
+    @app_commands.command(name="config", description="Configure the ticket system")
+    async def config(self, interaction: discord.Interaction):
+        embed = discord.Embed(title="Ticket System Configuration", description="Configure the ticket system here.", color=discord.Color.purple())
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(TicketSystem(bot))
