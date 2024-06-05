@@ -8,6 +8,7 @@ import suggestions
 import voting
 import giveaway
 import tickets
+import sticky
 
 intents = discord.Intents.default()
 intents.members = True
@@ -30,6 +31,7 @@ class MyBot(commands.Bot):
         await voting.setup(self)
         await giveaway.setup(self)
         await tickets.setup(self)
+        await sticky.setup(self)
 
         # Sync the command tree with Discord
         await self.tree.sync()
