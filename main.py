@@ -23,7 +23,8 @@ class MyBot(commands.Bot):
         welcome.setup(self, self.config)
         pin_settings.setup(self, self.config)
 
-        await self.tree.sync()  # Sync the command tree with Discord
+        # Sync the command tree with Discord
+        await self.tree.sync()
 
 bot = MyBot(command_prefix='!', intents=intents)
 
