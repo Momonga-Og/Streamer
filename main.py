@@ -9,20 +9,27 @@ intents = discord.Intents.default()
 intents.members = True
 intents.messages = True
 
-bot = commands.Bot(command_prefix='!', intents=intents)
+class MyBot(commands.Bot):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.config = None
 
-# Load configuration
-with open('config.json', 'r', encoding='utf-8') as f:
-    config = json.load(f)
+    async def setup_hook(self):
+        # Load configuration
+        with open('config.json', 'r', encoding='utf-8') as f:
+            self.config = json.load(f)
+
+        # Import functionalities
+        welcome.setup(self, self.config)
+        pin_settings.setup(self, self.config)
+
+        await self.tree.sync()  # Sync the command tree with Discord
+
+bot = MyBot(command_prefix='!', intents=intents)
 
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user}')
-    await bot.tree.sync()  # Sync the command tree with Discord
-
-# Import functionalities
-welcome.setup(bot, config)
-pin_settings.setup(bot, config)
 
 # Retrieve token from environment variable
 bot_token = os.getenv('DISCORD_BOT_TOKEN')
