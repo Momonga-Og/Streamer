@@ -77,9 +77,9 @@ def setup(bot, config):
         def __init__(self, bot):
             self.bot = bot
 
-        @commands.Cog.listener()
-        async def on_ready(self):
-            await bot.tree.sync()
+    bot.add_cog(PinSettings(bot))
 
-    # Await the add_cog coroutine
-    bot.loop.create_task(bot.add_cog(PinSettings(bot)))
+    # Sync the command tree with Discord when the cog is ready
+    @commands.Cog.listener()
+    async def on_ready(self):
+        await bot.tree.sync()
