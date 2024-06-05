@@ -28,22 +28,27 @@ async def on_member_join(member):
     if channel:
         print(f'Found welcome channel: {channel.name}')
         
-        # Open the welcome image
-        with open(config['welcome_image'], 'rb') as f:
-            picture = File(f)
+        try:
+            # Open the welcome image
+            with open(config['welcome_image'], 'rb') as f:
+                picture = File(f)
 
-            # Build the welcome message
-            message = f"{config['welcome_message']}\n╰ ╮・ ┈ ┈ ┈ ┈ ┈ ┈ ┈ ┈ ↓ ↓\n"
-            message += "╭ ╯ㅤ@𝖈𝖍𝖆𝖔𝖘\n— — — — —  — — — —\n"
-            for ch in config['channels']:
-                message += f"📖 ⨯ ・{ch['description']} ⁠«{ch['channel']}»\n"
-            message += "— — — — —  — — — —\n"
-            message += f"⊹ ˚. 🌟┊⢀ ₊ ˚ ღ ˚. 🌍 ┊・ ˚.\n˚. ┊・ ⊹ ₊ ˚{config['footer']} ღ ˚. 🌠 ┊・"
+                # Build the welcome message
+                message = f"{config['welcome_message']}\n╰ ╮・ ┈ ┈ ┈ ┈ ┈ ┈ ┈ ┈ ↓ ↓\n"
+                message += "╭ ╯ㅤ@𝖈𝖍𝖆𝖔𝖘\n— — — — —  — — — —\n"
+                for ch in config['channels']:
+                    message += f"📖 ⨯ ・{ch['description']} ⁠«{ch['channel']}»\n"
+                message += "— — — — —  — — — —\n"
+                message += f"⊹ ˚. 🌟┊⢀ ₊ ˚ ღ ˚. 🌍 ┊・ ˚.\n˚. ┊・ ⊹ ₊ ˚{config['footer']} ღ ˚. 🌠 ┊・"
 
-            await channel.send(message, file=picture)
-            print('Welcome message sent.')
+                await channel.send(message, file=picture)
+                print('Welcome message sent.')
+        except KeyError as e:
+            print(f'Error: Missing key {e} in config.json')
+        except FileNotFoundError:
+            print('Error: Welcome image file not found.')
     else:
         print('Welcome channel not found.')
 
 # Run the bot with your token from the configuration file
-bot.run(os.getenv('DISCORD_BOT_TOKEN'))
+bot.run(config['bot_token'])
