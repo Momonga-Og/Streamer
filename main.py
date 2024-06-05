@@ -4,7 +4,6 @@ import json
 from discord import File
 import os
 
-
 intents = discord.Intents.default()
 intents.members = True
 
@@ -20,11 +19,19 @@ async def on_ready():
 
 @bot.event
 async def on_member_join(member):
+    # Debugging statement
+    print(f'Member joined: {member.name}')
+    
+    # Look for the welcome channel
     channel = discord.utils.get(member.guild.text_channels, name='welcome')
+    
     if channel:
-        with open('welcome_image.png', 'rb') as f:
+        print(f'Found welcome channel: {channel.name}')
+        
+        # Open the welcome image
+        with open(config['welcome_image'], 'rb') as f:
             picture = File(f)
-            
+
             # Build the welcome message
             message = f"{config['welcome_message']}\n╰ ╮・ ┈ ┈ ┈ ┈ ┈ ┈ ┈ ┈ ↓ ↓\n"
             message += "╭ ╯ㅤ@𝖈𝖍𝖆𝖔𝖘\n— — — — —  — — — —\n"
@@ -32,8 +39,11 @@ async def on_member_join(member):
                 message += f"📖 ⨯ ・{ch['description']} ⁠«{ch['channel']}»\n"
             message += "— — — — —  — — — —\n"
             message += f"⊹ ˚. 🌟┊⢀ ₊ ˚ ღ ˚. 🌍 ┊・ ˚.\n˚. ┊・ ⊹ ₊ ˚{config['footer']} ღ ˚. 🌠 ┊・"
-            
-            await channel.send(message, file=picture)
 
-# Run the bot with your token
+            await channel.send(message, file=picture)
+            print('Welcome message sent.')
+    else:
+        print('Welcome channel not found.')
+
+# Run the bot with your token from the configuration file
 bot.run(os.getenv('DISCORD_BOT_TOKEN'))
