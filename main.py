@@ -4,6 +4,7 @@ import json
 import os
 import welcome
 import pin_settings
+import suggestions
 
 intents = discord.Intents.default()
 intents.members = True
@@ -22,6 +23,7 @@ class MyBot(commands.Bot):
         # Import functionalities
         welcome.setup(self, self.config)
         await pin_settings.setup(self, self.config)
+        await suggestions.setup(self)
 
         # Sync the command tree with Discord
         await self.tree.sync()
