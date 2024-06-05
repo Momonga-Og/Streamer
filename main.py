@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+import json
 import os
 import welcome
 import pin_settings
@@ -22,4 +23,4 @@ async def on_ready():
 welcome.setup(bot, config)
 pin_settings.setup(bot, config)
 
-bot.run(os.getenv('DISCORD_BOT_TOKEN'))
+bot.run(config['bot_token'])
