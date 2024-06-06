@@ -9,7 +9,6 @@ import voting
 import giveaway
 import tickets
 import sticky
-import openai_helper
 import logging_system
 
 intents = discord.Intents.default()
@@ -36,7 +35,6 @@ class MyBot(commands.Bot):
         await giveaway.setup(self)
         await tickets.setup(self)
         await sticky.setup(self)
-        await openai_helper.setup(self)
         await logging_system.setup(self)
 
         # Sync the command tree with Discord
