@@ -88,12 +88,11 @@ class LoggingSystem(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         print("LoggingSystem is ready.")
-        # Ensures that data is saved on bot shutdown
-        async def save_on_shutdown():
-            await self.bot.wait_until_close()
-            self.save_data()
 
-        self.bot.loop.create_task(save_on_shutdown())
+    @commands.Cog.listener()
+    async def on_disconnect(self):
+        print("Bot is disconnecting, saving data...")
+        self.save_data()
 
     @app_commands.command(name="stats", description="Display overall server statistics")
     async def stats(self, interaction: discord.Interaction):
