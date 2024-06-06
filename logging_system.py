@@ -85,6 +85,16 @@ class LoggingSystem(commands.Cog):
                 print(f"{member.name} left voice channel {before.channel.name} after {time_spent} seconds, Total Time: {self.voice_times[user_id]}")
                 self.save_data()
 
+    @commands.Cog.listener()
+    async def on_ready(self):
+        print("LoggingSystem is ready.")
+        # Ensures that data is saved on bot shutdown
+        async def save_on_shutdown():
+            await self.bot.wait_until_close()
+            self.save_data()
+
+        self.bot.loop.create_task(save_on_shutdown())
+
     @app_commands.command(name="stats", description="Display overall server statistics")
     async def stats(self, interaction: discord.Interaction):
         await interaction.response.defer()  # Acknowledge the interaction immediately
