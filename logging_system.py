@@ -46,7 +46,7 @@ class LoggingSystem(commands.Cog):
             return
         user_id = str(message.author.id)
         self.message_counts[user_id] = self.message_counts.get(user_id, 0) + 1
-        print(f"Message from {message.author}: {message.content}")
+        print(f"Message from {message.author}: {message.content}, Total Messages: {self.message_counts[user_id]}")
         self.save_data()
 
     @commands.Cog.listener()
@@ -55,7 +55,7 @@ class LoggingSystem(commands.Cog):
             return
         user_id = str(user.id)
         self.reaction_counts[user_id] = self.reaction_counts.get(user_id, 0) + 1
-        print(f"Reaction added by {user.name}")
+        print(f"Reaction added by {user.name}, Total Reactions: {self.reaction_counts[user_id]}")
         self.save_data()
 
     @commands.Cog.listener()
@@ -63,8 +63,8 @@ class LoggingSystem(commands.Cog):
         if user.bot:
             return
         user_id = str(user.id)
-        self.reaction_counts[user_id] = self.reaction_counts.get(user_id, 0) + 1
-        print(f"Reaction removed by {user.name}")
+        self.reaction_counts[user_id] = self.reaction_counts.get(user_id, 0) - 1
+        print(f"Reaction removed by {user.name}, Total Reactions: {self.reaction_counts[user_id]}")
         self.save_data()
 
     @commands.Cog.listener()
@@ -82,11 +82,12 @@ class LoggingSystem(commands.Cog):
             if join_time:
                 time_spent = (datetime.datetime.now() - join_time).total_seconds()
                 self.voice_times[user_id] = self.voice_times.get(user_id, 0) + time_spent
-                print(f"{member.name} left voice channel {before.channel.name} after {time_spent} seconds")
+                print(f"{member.name} left voice channel {before.channel.name} after {time_spent} seconds, Total Time: {self.voice_times[user_id]}")
                 self.save_data()
 
     @app_commands.command(name="stats", description="Display overall server statistics")
     async def stats(self, interaction: discord.Interaction):
+        await interaction.response.defer()  # Acknowledge the interaction immediately
         top_users = sorted(self.message_counts.items(), key=lambda x: x[1], reverse=True)[:10]
         top_channels = {}  # Implement if needed
 
@@ -98,11 +99,12 @@ class LoggingSystem(commands.Cog):
         )
         # Add more fields as needed
 
-        await interaction.response.send_message(embed=embed)
+        await interaction.followup.send(embed=embed)
 
     @app_commands.command(name="userstats", description="Display statistics for a specific user")
     @app_commands.describe(user="The user to display statistics for")
     async def userstats(self, interaction: discord.Interaction, user: discord.User):
+        await interaction.response.defer()  # Acknowledge the interaction immediately
         user_id = str(user.id)
         message_count = self.message_counts.get(user_id, 0)
         reaction_count = self.reaction_counts.get(user_id, 0)
@@ -113,7 +115,7 @@ class LoggingSystem(commands.Cog):
         embed.add_field(name="Reactions Added", value=reaction_count, inline=False)
         embed.add_field(name="Time in Voice (seconds)", value=voice_time, inline=False)
 
-        await interaction.response.send_message(embed=embed)
+        await interaction.followup.send(embed=embed)
 
 async def setup(bot):
     await bot.add_cog(LoggingSystem(bot))
