@@ -23,6 +23,9 @@ class LoggingSystem(commands.Cog):
                 self.message_counts = data.get('message_counts', {})
                 self.reaction_counts = data.get('reaction_counts', {})
                 self.voice_times = data.get('voice_times', {})
+                print(f"Loaded data from {DATA_FILE}")
+        else:
+            print(f"{DATA_FILE} does not exist. Starting with empty data.")
 
     def save_data(self):
         data = {
@@ -30,8 +33,12 @@ class LoggingSystem(commands.Cog):
             'reaction_counts': self.reaction_counts,
             'voice_times': self.voice_times
         }
-        with open(DATA_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
+        try:
+            with open(DATA_FILE, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=4)
+            print(f"Saved data to {DATA_FILE}")
+        except Exception as e:
+            print(f"Failed to save data: {e}")
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -39,6 +46,7 @@ class LoggingSystem(commands.Cog):
             return
         user_id = str(message.author.id)
         self.message_counts[user_id] = self.message_counts.get(user_id, 0) + 1
+        print(f"Message from {message.author}: {message.content}")
         self.save_data()
 
     @commands.Cog.listener()
@@ -47,6 +55,7 @@ class LoggingSystem(commands.Cog):
             return
         user_id = str(user.id)
         self.reaction_counts[user_id] = self.reaction_counts.get(user_id, 0) + 1
+        print(f"Reaction added by {user.name}")
         self.save_data()
 
     @commands.Cog.listener()
@@ -55,6 +64,7 @@ class LoggingSystem(commands.Cog):
             return
         user_id = str(user.id)
         self.reaction_counts[user_id] = self.reaction_counts.get(user_id, 0) + 1
+        print(f"Reaction removed by {user.name}")
         self.save_data()
 
     @commands.Cog.listener()
@@ -65,12 +75,14 @@ class LoggingSystem(commands.Cog):
         if before.channel is None and after.channel is not None:
             # User joined a voice channel
             self.voice_state_cache[user_id] = datetime.datetime.now()
+            print(f"{member.name} joined voice channel {after.channel.name}")
         elif before.channel is not None and after.channel is None:
             # User left a voice channel
             join_time = self.voice_state_cache.pop(user_id, None)
             if join_time:
                 time_spent = (datetime.datetime.now() - join_time).total_seconds()
                 self.voice_times[user_id] = self.voice_times.get(user_id, 0) + time_spent
+                print(f"{member.name} left voice channel {before.channel.name} after {time_spent} seconds")
                 self.save_data()
 
     @app_commands.command(name="stats", description="Display overall server statistics")
