@@ -124,9 +124,12 @@ class LoggingSystem(commands.Cog):
             embed.add_field(name="Time in Voice (seconds)", value=voice_time, inline=False)
 
             await interaction.response.send_message(embed=embed, ephemeral=True)
-        except Exception as e:
+        except discord.errors.NotFound as e:
             print(f"Error in userstats command: {e}")
-            await interaction.response.send_message("An error occurred while fetching user stats. Please try again later.", ephemeral=True)
+            await interaction.followup.send("An error occurred while fetching user stats. Please try again later.", ephemeral=True)
+        except Exception as e:
+            print(f"Unexpected error in userstats command: {e}")
+            await interaction.followup.send("An unexpected error occurred. Please try again later.", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(LoggingSystem(bot))
