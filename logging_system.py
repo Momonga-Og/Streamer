@@ -112,18 +112,21 @@ class LoggingSystem(commands.Cog):
     @app_commands.command(name="userstats", description="Display statistics for a specific user")
     @app_commands.describe(user="The user to display statistics for")
     async def userstats(self, interaction: discord.Interaction, user: discord.User):
-        await interaction.response.defer(ephemeral=True)  # Acknowledge the interaction immediately
-        user_id = str(user.id)
-        message_count = self.message_counts.get(user_id, 0)
-        reaction_count = self.reaction_counts.get(user_id, 0)
-        voice_time = self.voice_times.get(user_id, 0)
+        try:
+            user_id = str(user.id)
+            message_count = self.message_counts.get(user_id, 0)
+            reaction_count = self.reaction_counts.get(user_id, 0)
+            voice_time = self.voice_times.get(user_id, 0)
 
-        embed = discord.Embed(title=f"Statistics for {user.display_name}", color=discord.Color.green())
-        embed.add_field(name="Messages Sent", value=message_count, inline=False)
-        embed.add_field(name="Reactions Added", value=reaction_count, inline=False)
-        embed.add_field(name="Time in Voice (seconds)", value=voice_time, inline=False)
+            embed = discord.Embed(title=f"Statistics for {user.display_name}", color=discord.Color.green())
+            embed.add_field(name="Messages Sent", value=message_count, inline=False)
+            embed.add_field(name="Reactions Added", value=reaction_count, inline=False)
+            embed.add_field(name="Time in Voice (seconds)", value=voice_time, inline=False)
 
-        await interaction.followup.send(embed=embed)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        except Exception as e:
+            print(f"Error in userstats command: {e}")
+            await interaction.response.send_message("An error occurred while fetching user stats. Please try again later.", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(LoggingSystem(bot))
