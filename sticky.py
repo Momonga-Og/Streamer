@@ -3,6 +3,7 @@ from discord.ext import commands, tasks
 from discord import app_commands
 import json
 import os
+import asyncio
 
 class StickyMessages(commands.Cog):
     def __init__(self, bot):
@@ -85,6 +86,8 @@ class StickyMessages(commands.Cog):
 
         channel_id = str(message.channel.id)
         if channel_id in self.stickies and self.stickies[channel_id]["active"]:
+            # Wait a short time to ensure the sticky message is posted last
+            await asyncio.sleep(1)
             await self.post_sticky(message.channel)
 
     async def post_sticky(self, channel):
