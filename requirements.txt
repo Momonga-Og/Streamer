@@ -1,3 +1,4 @@
 discord.py
 discord
 openai==0.28
+Pillow
