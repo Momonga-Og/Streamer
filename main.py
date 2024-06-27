@@ -55,13 +55,13 @@ async def on_ready():
 
 @bot.tree.command(name="combine", description="Combine images into one long image")
 async def combine(interaction: discord.Interaction):
-    await interaction.response.send_message("Please upload the images you want to combine as a reply to this message.", ephemeral=True)
+    await interaction.response.send_message("Please upload the images you want to combine as a reply to this message. You have 5 minutes to upload the images.", ephemeral=True)
 
     def check(msg):
         return msg.author == interaction.user and msg.channel == interaction.channel and msg.attachments
 
     try:
-        msg = await bot.wait_for('message', check=check, timeout=120.0)
+        msg = await bot.wait_for('message', check=check, timeout=300.0)  # 5 minutes timeout
     except asyncio.TimeoutError:
         await interaction.followup.send("You took too long to upload the images.", ephemeral=True)
         return
