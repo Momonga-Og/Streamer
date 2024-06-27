@@ -82,9 +82,9 @@ async def combine(interaction: discord.Interaction):
     await interaction.followup.send("Combining images, please wait...", ephemeral=True)
 
     try:
-        combined_image = await combine_images(attachments)
-        zip_file = create_zip(combined_image)
-        file = discord.File(fp=zip_file, filename="combined_image.zip")
+        combined_images = await combine_images(attachments)
+        zip_file = create_zip(combined_images)
+        file = discord.File(fp=zip_file, filename="combined_images.zip")
         await interaction.followup.send("Here is your combined image in a ZIP file:", file=file)
         logging.info("Combined image sent successfully")
     except Exception as e:
