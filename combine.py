@@ -1,10 +1,19 @@
 from PIL import Image
 import io
 import discord
+import zipfile
+import re
 
 MAX_FILE_SIZE = 8 * 1024 * 1024  # 8 MB
 
+def extract_number(filename):
+    match = re.search(r'\d+', filename)
+    return int(match.group()) if match else float('inf')
+
 async def combine_images(images):
+    # Sort images based on numbers in their filenames
+    images = sorted(images, key=lambda img: extract_number(img.filename))
+    
     image_objects = [Image.open(io.BytesIO(await image.read())) for image in images]
     widths, heights = zip(*(img.size for img in image_objects))
     
@@ -38,3 +47,10 @@ async def combine_images(images):
         byte_array.seek(0)
     
     return byte_array
+
+def create_zip(image_data):
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        zip_file.writestr("combined_image.jpg", image_data.getvalue())
+    zip_buffer.seek(0)
+    return zip_buffer
