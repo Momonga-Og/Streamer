@@ -10,7 +10,7 @@ import giveaway
 import tickets
 import sticky
 import logging_system
-from combine import combine_images
+from combine import combine_images, create_zip
 import logging
 import asyncio
 
@@ -83,8 +83,9 @@ async def combine(interaction: discord.Interaction):
 
     try:
         combined_image = await combine_images(attachments)
-        file = discord.File(fp=combined_image, filename="combined_image.jpg")
-        await interaction.followup.send("Here is your combined image:", file=file)
+        zip_file = create_zip(combined_image)
+        file = discord.File(fp=zip_file, filename="combined_image.zip")
+        await interaction.followup.send("Here is your combined image in a ZIP file:", file=file)
         logging.info("Combined image sent successfully")
     except Exception as e:
         logging.error(f"Error while combining images: {e}")
