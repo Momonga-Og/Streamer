@@ -53,28 +53,25 @@ async def combine(interaction: discord.Interaction, attachment1: discord.Attachm
                   attachment3: discord.Attachment = None, attachment4: discord.Attachment = None, attachment5: discord.Attachment = None,
                   attachment6: discord.Attachment = None, attachment7: discord.Attachment = None, attachment8: discord.Attachment = None,
                   attachment9: discord.Attachment = None, attachment10: discord.Attachment = None):
-    initial_attachments = [attachment for attachment in [attachment1, attachment2, attachment3, attachment4, attachment5, 
-                                                         attachment6, attachment7, attachment8, attachment9, attachment10] if attachment]
-    message_attachments = interaction.message.attachments
-    
-    all_attachments = initial_attachments + message_attachments
-    
-    if not all_attachments:
+    attachments = [attachment for attachment in [attachment1, attachment2, attachment3, attachment4, attachment5, 
+                                                 attachment6, attachment7, attachment8, attachment9, attachment10] if attachment]
+
+    if not attachments:
         await interaction.response.send_message("Please attach images to combine.", ephemeral=True)
         return
     
-    if len(all_attachments) > 40:
+    if len(attachments) > 40:
         await interaction.response.send_message("You can only combine up to 40 images.", ephemeral=True)
         return
 
     # Validate file extensions
     valid_extensions = ('.png', '.jpg', '.jpeg')
-    for image in all_attachments:
+    for image in attachments:
         if not image.filename.lower().endswith(valid_extensions):
             await interaction.response.send_message(f"File {image.filename} is not a valid PNG or JPG image.", ephemeral=True)
             return
 
-    combined_image = await combine_images(all_attachments)
+    combined_image = await combine_images(attachments)
     file = discord.File(fp=combined_image, filename="combined_image.png")
     await interaction.response.send_message("Here is your combined image:", file=file)
 
