@@ -5,6 +5,7 @@ import zipfile
 import re
 
 MAX_FILE_SIZE = 8 * 1024 * 1024  # 8 MB
+MAX_DIMENSION = 65500  # Maximum supported image dimension
 
 def extract_number(filename):
     match = re.search(r'\d+', filename)
@@ -19,6 +20,9 @@ async def combine_images(images):
     
     total_height = sum(heights)
     max_width = max(widths)
+    
+    if max_width > MAX_DIMENSION or total_height > MAX_DIMENSION:
+        return split_and_combine_images(image_objects, max_width)
     
     combined_image = Image.new('RGB', (max_width, total_height))
     y_offset = 0
@@ -48,9 +52,32 @@ async def combine_images(images):
     
     return byte_array
 
-def create_zip(image_data):
+def split_and_combine_images(image_objects, max_width):
+    part_index = 0
+    y_offset = 0
+    combined_images = []
+    
+    while image_objects:
+        combined_image = Image.new('RGB', (max_width, MAX_DIMENSION))
+        part_height = 0
+        
+        while image_objects and part_height + image_objects[0].height <= MAX_DIMENSION:
+            img = image_objects.pop(0)
+            combined_image.paste(img, (0, part_height))
+            part_height += img.height
+        
+        byte_array = io.BytesIO()
+        combined_image.crop((0, 0, max_width, part_height)).save(byte_array, format='PNG', optimize=True)
+        byte_array.seek(0)
+        combined_images.append((byte_array, part_index))
+        part_index += 1
+    
+    return combined_images
+
+def create_zip(combined_images):
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        zip_file.writestr("combined_image.jpg", image_data.getvalue())
+        for byte_array, part_index in combined_images:
+            zip_file.writestr(f"combined_image_part_{part_index}.jpg", byte_array.getvalue())
     zip_buffer.seek(0)
     return zip_buffer
