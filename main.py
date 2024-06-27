@@ -11,6 +11,11 @@ import tickets
 import sticky
 import logging_system
 from combine import combine_images
+import logging
+import asyncio
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
 intents = discord.Intents.default()
 intents.message_content = True  # Enable the message content intent
@@ -46,34 +51,44 @@ bot = MyBot(command_prefix='!', intents=intents)
 
 @bot.event
 async def on_ready():
-    print(f'Logged in as {bot.user}')
+    logging.info(f'Logged in as {bot.user}')
 
-@bot.tree.command(name="combine", description="Combine up to 10 images into one long image")
-async def combine(interaction: discord.Interaction, attachment1: discord.Attachment = None, attachment2: discord.Attachment = None, 
-                  attachment3: discord.Attachment = None, attachment4: discord.Attachment = None, attachment5: discord.Attachment = None,
-                  attachment6: discord.Attachment = None, attachment7: discord.Attachment = None, attachment8: discord.Attachment = None,
-                  attachment9: discord.Attachment = None, attachment10: discord.Attachment = None):
-    attachments = [attachment for attachment in [attachment1, attachment2, attachment3, attachment4, attachment5, 
-                                                 attachment6, attachment7, attachment8, attachment9, attachment10] if attachment]
+@bot.tree.command(name="combine", description="Combine images into one long image")
+async def combine(interaction: discord.Interaction):
+    await interaction.response.send_message("Please upload the images you want to combine.", ephemeral=True)
 
-    if not attachments:
-        await interaction.response.send_message("Please attach images to combine.", ephemeral=True)
+    def check(msg):
+        return msg.author == interaction.user and msg.attachments
+
+    try:
+        msg = await bot.wait_for('message', check=check, timeout=60.0)
+    except asyncio.TimeoutError:
+        await interaction.followup.send("You took too long to upload the images.", ephemeral=True)
         return
-    
+
+    attachments = msg.attachments
+
     if len(attachments) > 40:
-        await interaction.response.send_message("You can only combine up to 40 images.", ephemeral=True)
+        await interaction.followup.send("You can only combine up to 40 images.", ephemeral=True)
         return
 
     # Validate file extensions
     valid_extensions = ('.png', '.jpg', '.jpeg')
     for image in attachments:
         if not image.filename.lower().endswith(valid_extensions):
-            await interaction.response.send_message(f"File {image.filename} is not a valid PNG or JPG image.", ephemeral=True)
+            await interaction.followup.send(f"File {image.filename} is not a valid PNG or JPG image.", ephemeral=True)
             return
 
-    combined_image = await combine_images(attachments)
-    file = discord.File(fp=combined_image, filename="combined_image.png")
-    await interaction.response.send_message("Here is your combined image:", file=file)
+    await interaction.followup.send("Combining images, please wait...", ephemeral=True)
+
+    try:
+        combined_image = await combine_images(attachments)
+        file = discord.File(fp=combined_image, filename="combined_image.jpg")
+        await interaction.followup.send("Here is your combined image:", file=file)
+        logging.info("Combined image sent successfully")
+    except Exception as e:
+        logging.error(f"Error while combining images: {e}")
+        await interaction.followup.send("An error occurred while combining the images.", ephemeral=True)
 
 # Retrieve token from environment variable
 bot_token = os.getenv('DISCORD_BOT_TOKEN')
